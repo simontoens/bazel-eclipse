@@ -83,6 +83,6 @@ public class BazelPreferencePage extends FieldEditorPreferencePage implements IW
     @Override
     public void init(IWorkbench workbench) {
         setPreferenceStore(BazelPluginActivator.getInstance().getPreferenceStore());
-        setDescription("Bazel plugin settings");
+        setDescription("Bazel Settings");
     }
 }

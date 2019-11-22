@@ -61,12 +61,13 @@ public final class ShellCommand implements Command {
     private final SelectOutputStream stdout;
     private final SelectOutputStream stderr;
     private final WorkProgressMonitor progressMonitor;
+    private final long timeoutMS;
 
     private boolean executed = false;
 
     ShellCommand(CommandConsole console, File directory, ImmutableList<String> args,
             Function<String, String> stdoutSelector, Function<String, String> stderrSelector, OutputStream stdout,
-            OutputStream stderr, WorkProgressMonitor progressMonitor) {
+            OutputStream stderr, WorkProgressMonitor progressMonitor, long timeoutMS) {
         this.directory = directory;
         this.args = args;
         if (console != null) {
@@ -80,6 +81,7 @@ public final class ShellCommand implements Command {
         this.stderr = new SelectOutputStream(stderr, stderrSelector);
         this.stdout = new SelectOutputStream(stdout, stdoutSelector);
         this.progressMonitor = progressMonitor;
+        this.timeoutMS = timeoutMS;
     }
 
     /**
@@ -109,25 +111,34 @@ public final class ShellCommand implements Command {
         if (this.progressMonitor != null) {
             this.progressMonitor.worked(1);
         }
+        String command = "";
+        for (String arg : args) {
+            command = command + arg + " ";
+        }
+        System.out.println("Executing command: "+command);
 
         try {
             Thread err = copyStream(process.getErrorStream(), stderr);
             Thread out = copyStream(process.getInputStream(), stdout);
             int exitCode = process.waitFor();
             if (err != null) {
-                err.join();
+                err.join(timeoutMS);
             }
             if (out != null) {
-                out.join();
+                out.join(timeoutMS);
             }
             return exitCode;
-        } finally {
-            closeQuitely(stderr);
-            closeQuitely(stdout);
+        } catch (InterruptedException interrupted) {
+            throw interrupted;
+        }
+        finally {
+            // TODO this is contributing to the hanging problem seen after upgrade to Bazel 1.0?
+            //closeQuietly(stderr);
+            //closeQuietly(stdout);
         }
     }
 
-    private static void closeQuitely(OutputStream os) {
+    private static void closeQuietly(OutputStream os) {
         try {
             os.close();
         } catch (Exception ignore) {}

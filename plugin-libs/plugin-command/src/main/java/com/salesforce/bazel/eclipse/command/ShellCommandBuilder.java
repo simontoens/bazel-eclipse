@@ -23,7 +23,7 @@ public class ShellCommandBuilder extends CommandBuilder {
             "Running " + String.join(" ", args) + " from " + directory.toString());
         
         ShellCommand command = new ShellCommand(console, directory, args, stdoutSelector, stderrSelector, stdout, stderr,
-            progressMonitor);
+            progressMonitor, timeoutMS);
         
         // get ready for next command to be built
         this.reset();

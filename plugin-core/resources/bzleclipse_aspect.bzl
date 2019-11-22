@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Aspect for Bazel Eclipse Feature, taken from intellij_info.bzl
+
+
+# Aspect for Bazel Eclipse Feature, taken from an early version of intellij_info.bzl
+# TODO upgrade this to their latest work
 
 DEPENDENCY_ATTRIBUTES = [
   "deps",
@@ -25,26 +28,26 @@ def struct_omit_none(**kwargs):
     d = {name: kwargs[name] for name in kwargs if kwargs[name] != None}
     return struct(**d)
 
-def artifact_location(file):
+def artifact_location_or_none(file):
   return None if file == None else file.path
 
 def library_artifact(java_output):
   if java_output == None or java_output.class_jar == None:
     return None
   return struct_omit_none(
-        jar = artifact_location(java_output.class_jar),
-        interface_jar = artifact_location(java_output.ijar),
-        source_jar = artifact_location(java_output.source_jar),
+        jar = artifact_location_or_none(java_output.class_jar),
+        interface_jar = artifact_location_or_none(java_output.ijar),
+        source_jar = artifact_location_or_none(java_output.source_jar),
   )
 
 def annotation_processing_jars(annotation_processing):
   return struct_omit_none(
-        jar = artifact_location(annotation_processing.class_jar),
-        source_jar = artifact_location(annotation_processing.source_jar),
+        jar = artifact_location_or_none(annotation_processing.class_jar),
+        source_jar = artifact_location_or_none(annotation_processing.source_jar),
   )
 
 def jars_from_output(output):
-  """ Collect jars for ide-resolve-files from Java output.
+  """ Collect jars for classpath_jars from Java output.
   """
   if output == None:
     return []
@@ -54,24 +57,24 @@ def jars_from_output(output):
 
 def java_rule_ide_info(target, ctx):
   if hasattr(ctx.rule.attr, "srcs"):
-     sources = [artifact_location(file)
+     sources = [artifact_location_or_none(file)
                 for src in ctx.rule.attr.srcs
-                for file in src.files]
+                for file in src.files.to_list()]
   else:
      sources = []
 
-  jars = [library_artifact(output) for output in target.java.outputs.jars]
-  ide_resolve_files = depset([jar
-       for output in target.java.outputs.jars
+  jars = [library_artifact(output) for output in target[JavaInfo].outputs.jars]
+  classpath_jars = depset([jar
+       for output in target[JavaInfo].outputs.jars
        for jar in jars_from_output(output)])
 
   gen_jars = []
-  if target.java.annotation_processing and target.java.annotation_processing.enabled:
-    gen_jars = [annotation_processing_jars(target.java.annotation_processing)]
-    ide_resolve_files = ide_resolve_files + depset([ jar
-        for jar in [target.java.annotation_processing.class_jar,
-                    target.java.annotation_processing.source_jar]
-        if jar != None and not jar.is_source])
+  if target[JavaInfo].annotation_processing and target[JavaInfo].annotation_processing.enabled:
+    gen_jars = [annotation_processing_jars(target[JavaInfo].annotation_processing)]
+    classpath_jars =  depset([ jar
+        for jar in [target[JavaInfo].annotation_processing.class_jar,
+                    target[JavaInfo].annotation_processing.source_jar]
+        if jar != None and not jar.is_source], transitive = [classpath_jars])
 
   if hasattr(ctx.rule.attr, "main_class"):
       main_class = ctx.rule.attr.main_class
@@ -84,63 +87,87 @@ def java_rule_ide_info(target, ctx):
                  jars = jars,
                  generated_jars = gen_jars
           ),
-          ide_resolve_files)
+          classpath_jars)
 
 
 def _aspect_impl(target, ctx):
-  kind = ctx.rule.kind
+  # e.g. java_library
+  rule_kind = ctx.rule.kind
   rule_attrs = ctx.rule.attr
 
-  ide_info_text = depset()
-  ide_resolve_files = depset()
+  json_files = []
+  classpath_jars = depset()
   all_deps = []
 
+  print("Aspect Target:")
+  print(target)
+  print("  JavaInfo:")
+  print(target[JavaInfo])
+  print("  RuleAttrs:")
+  print(rule_attrs)
+
+  hasDepAttr = False
+
+  # "deps", "runtime_deps", "exports"
   for attr_name in DEPENDENCY_ATTRIBUTES:
     if hasattr(rule_attrs, attr_name):
       deps = getattr(rule_attrs, attr_name)
       if type(deps) == 'list':
         for dep in deps:
-          if hasattr(dep, "intellij_info_files"):
-           ide_info_text = ide_info_text + dep.intellij_info_files.ide_info_text
-           ide_resolve_files = ide_resolve_files + dep.intellij_info_files.ide_resolve_files
+          if hasattr(dep, "output_data"):
+           print("  JSON FILES from attr")
+           print(dep.output_data.json_files)
+           json_files += dep.output_data.json_files
+           classpath_jars = depset(dep.output_data.classpath_jars.to_list(), transitive = [classpath_jars])
         all_deps += [str(dep.label) for dep in deps]
+        hasDepAttr = True
 
+  hasJavaAttr = False
   if hasattr(target, "java"):
-    (java_rule_ide_info_struct, java_ide_resolve_files) = java_rule_ide_info(target, ctx)
-    info = struct(
+    hasJavaAttr = True
+    (java_rule_ide_info_struct, target_classpath_jars) = java_rule_ide_info(target, ctx)
+    json_data = struct(
         label = str(target.label),
-        kind = kind,
+        kind = rule_kind,
         dependencies = all_deps,
         build_file_artifact_location = ctx.build_file_path,
     ) + java_rule_ide_info_struct
-    ide_resolve_files = ide_resolve_files + java_ide_resolve_files
-    output = ctx.new_file(target.label.name + ".bzleclipse-build.json")
-    ctx.file_action(output, info.to_json())
-    ide_info_text += depset([output])
+    classpath_jars = depset(target_classpath_jars.to_list(), transitive = [classpath_jars])
+    json_file_path = ctx.actions.declare_file(target.label.name + ".bzleclipse-build.json")
+    ctx.actions.write(json_file_path, json_data.to_json())
+    print("  JSON FILE PATH")
+    print(json_file_path)
+    json_files += [json_file_path]
 
+  print("  Attr State: DEP: %r JAVA: %r" % (hasDepAttr, hasJavaAttr))
+  print("  JSON FILES")
+  print(json_files)
+  print("  CLASSPATH JARS")
+  print(classpath_jars)
+  
   return struct(
       output_groups = {
-        "ide-info-text" : ide_info_text,
-        "ide-resolve" : ide_resolve_files,
+        "json-files" : depset(json_files),
+        "classpath-jars" : classpath_jars,
       },
-      intellij_info_files = struct(
-        ide_info_text = ide_info_text,
-        ide_resolve_files = ide_resolve_files,
+      output_data = struct(
+        json_files = json_files,
+        classpath_jars = classpath_jars,
       )
     )
 
 bzleclipse_aspect = aspect(implementation = _aspect_impl,
     attr_aspects = DEPENDENCY_ATTRIBUTES
 )
-"""Aspect for Eclipse 4 Bazel plugin.
+"""Aspect for Bazel Eclipse Feature.
 
 This aspect produces information for IDE integration with Eclipse. This only
 produces information for Java targets.
 
 This aspect has two output groups:
-  - ide-info-text produces .bzleclipse-build.json files that contains information
+  - json-files : produces .bzleclipse-build.json files that contains information
     about target dependencies and sources files for the IDE.
-  - ide-resolve build the dependencies needed for the build (i.e., artifacts
+  - classpath-jars : build the dependencies needed for the build (i.e., artifacts
     generated by Java annotation processors).
 
 An bzleclipse-build.json file is a json blob with the following keys:

@@ -139,7 +139,7 @@ public class BazelWorkspaceCommandRunner {
         this.aspectOptions = ImmutableList.<String> builder()
                 .add("--override_repository=local_eclipse_aspect=" + aspectLocation.getAspectDirectory(),
                     "--aspects=@local_eclipse_aspect" + aspectLocation.getAspectLabel(), "-k",
-                    "--output_groups=ide-info-text,ide-resolve,-_,-defaults", "--experimental_show_artifacts")
+                    "--output_groups=json-files,classpath-jars,-_,-defaults", "--experimental_show_artifacts")
                 .build();
     }
 

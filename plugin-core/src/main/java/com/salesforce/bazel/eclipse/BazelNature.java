@@ -50,7 +50,7 @@ public class BazelNature implements IProjectNature {
     @Override
     public void configure() throws CoreException {
         // TODO we aren't doing anything right now for BazelNature configure hook, seems like it should be used for something
-        BazelPluginActivator.info("BazelNature configure hook called.");
+        //BazelPluginActivator.info("BazelNature configure hook called.");
     }
 
     @Override

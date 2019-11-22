@@ -23,6 +23,7 @@ public abstract class CommandBuilder {
     protected Function<String, String> stderrSelector;
     protected final CommandConsoleFactory consoleFactory;
     protected WorkProgressMonitor progressMonitor;
+    protected long timeoutMS;
 
     protected CommandBuilder(final CommandConsoleFactory consoleFactory) {
         this.consoleFactory = consoleFactory;
@@ -40,6 +41,8 @@ public abstract class CommandBuilder {
         this.stdoutSelector = null;
         this.stderrSelector = null;
         this.progressMonitor = null;
+        
+        this.timeoutMS = 20000; // default timeout
     }
 
     /**
@@ -138,6 +141,14 @@ public abstract class CommandBuilder {
      */
     public CommandBuilder setProgressMonitor(WorkProgressMonitor progressMonitor) {
         this.progressMonitor = progressMonitor;
+        return this;
+    }
+
+    /**
+     * Provide an optional timeout for the command (in milliseconds).
+     */
+    public CommandBuilder setTimeout(long timeoutMS) {
+        this.timeoutMS = timeoutMS;
         return this;
     }
 
