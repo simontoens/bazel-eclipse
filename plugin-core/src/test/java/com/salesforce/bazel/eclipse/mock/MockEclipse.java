@@ -7,9 +7,11 @@ import java.util.List;
 import org.eclipse.core.resources.IProject;
 
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
+import com.salesforce.bazel.eclipse.command.mock.MockCommandBuilder;
 import com.salesforce.bazel.eclipse.preferences.BazelPreferencePage;
 import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
 import com.salesforce.bazel.eclipse.test.TestBazelWorkspaceCreator;
+
 
 /**
  * Primary entry point into the mocking framework for the core plugin. We only mock the small slice of Eclipse

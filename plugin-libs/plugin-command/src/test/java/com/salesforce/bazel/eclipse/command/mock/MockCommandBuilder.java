@@ -1,4 +1,4 @@
-package com.salesforce.bazel.eclipse.mock;
+package com.salesforce.bazel.eclipse.command.mock;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,7 +51,7 @@ public class MockCommandBuilder extends CommandBuilder {
      * able to create the specific output.
      */
     
-    MockCommandBuilder(CommandConsoleFactory consoleFactory, File bazelWorkspaceRoot, File bazelOutputBase, File bazelExecutionRoot,
+    public MockCommandBuilder(CommandConsoleFactory consoleFactory, File bazelWorkspaceRoot, File bazelOutputBase, File bazelExecutionRoot,
         File bazelBin) {
         super(consoleFactory);
         this.bazelWorkspaceRoot = bazelWorkspaceRoot;

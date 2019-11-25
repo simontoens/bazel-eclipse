@@ -36,6 +36,24 @@ eclipse_plugin(
     ],
 )
 
+# Mock Command library
+java_library(
+    name = "plugin-command-test-mocks",
+    srcs = glob([
+        "src/test/java/com/salesforce/bazel/eclipse/command/mock/MockCommand.java",
+        "src/test/java/com/salesforce/bazel/eclipse/command/mock/MockCommandBuilder.java",
+    ]),
+    visibility = ["//visibility:public"],
+    deps = [
+        ":plugin-command",
+        "//plugin-libs/plugin-abstractions",
+
+        "//plugin-libs/plugin-testdeps:org_junit_junit",
+        "//plugin-libs/plugin-deps:com_google_guava",
+    ],
+)
+
+
 java_test(
     name = "ShellCommandTest",
     srcs = ["src/test/java/com/salesforce/bazel/eclipse/command/ShellCommandTest.java"],

@@ -40,8 +40,10 @@ eclipse_plugin(
 mock_src = glob(["src/test/java/com/salesforce/bazel/eclipse/mock/*.java"])
 mock_deps = [
         "//plugin-libs/plugin-testdeps",
-        "//plugin-libs/plugin-deps:com_google_guava",
         "//plugin-libs/plugin-testdeps:org_mockito_mockito_core",
+        "//plugin-libs/plugin-command:plugin-command-test-mocks",
+
+        "//plugin-libs/plugin-deps:com_google_guava",
 
         "//tools/eclipse_jars:org_eclipse_core_contenttype",
         "//tools/eclipse_jars:org_eclipse_core_jobs",
