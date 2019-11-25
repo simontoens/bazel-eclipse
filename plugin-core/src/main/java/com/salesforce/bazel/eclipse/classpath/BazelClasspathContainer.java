@@ -96,6 +96,8 @@ public class BazelClasspathContainer implements IClasspathContainer {
 
     @Override
     public IClasspathEntry[] getClasspathEntries() {
+        BazelPluginActivator.info("Computing classpath for project "+eclipseProjectName);
+        
         // sanity check
         if (!BazelPluginActivator.hasBazelWorkspaceRootDirectory()) {
             throw new IllegalStateException("Attempt to retrieve the classpath of a Bazel Java project prior to setting up the Bazel workspace.");
@@ -131,10 +133,22 @@ public class BazelClasspathContainer implements IClasspathContainer {
                     // no project found that houses the sources of this bazel target, add the jars to the classpath
                     // this means that this is an external jar, or a jar produced by a bazel target that was not imported
                     for (AspectOutputJars jarSet : packageInfo.getGeneratedJars()) {
-                        classpathEntries.add(jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet));
+                        IClasspathEntry cpEntry = jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet); 
+                        if (cpEntry != null) {
+                            classpathEntries.add(cpEntry);
+                        } else {
+                            // there was a problem with the aspect computation, this might resolve itself if we recompute it
+                            bazelWorkspaceCmdRunner.flushAspectInfoCache(bazelTargetsForProject);
+                        }
                     }
                     for (AspectOutputJars jarSet : packageInfo.getJars()) {
-                        classpathEntries.add(jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet));
+                        IClasspathEntry cpEntry = jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet);
+                        if (cpEntry != null) {
+                            classpathEntries.add(cpEntry);
+                        } else {
+                            // there was a problem with the aspect computation, this might resolve itself if we recompute it
+                            bazelWorkspaceCmdRunner.flushAspectInfoCache(bazelTargetsForProject);
+                        }
                     }
                 } else if (eclipseProject.getProject().getFullPath().equals(otherProject.getProject().getFullPath())) {
                     // the project referenced is actually the the current project that this classpath container is for - nothing to do
@@ -274,51 +288,53 @@ public class BazelClasspathContainer implements IClasspathContainer {
         return false;
     }
 
-    private IClasspathEntry jarsToClasspathEntry(BazelWorkspaceCommandRunner bazelCommandRunner, WorkProgressMonitor progressMonitor, AspectOutputJars jarSet) {
-        File bazelExecRoot = bazelCommandRunner.getBazelWorkspaceExecRoot(progressMonitor);
-        return BazelPluginActivator.getJavaCoreHelper().newLibraryEntry(getJarIPath(bazelExecRoot, jarSet.getJar()),
-            getJarIPath(bazelExecRoot, jarSet.getSrcJar()), null);
+    private IClasspathEntry jarsToClasspathEntry(BazelWorkspaceCommandRunner bazelCommandRunner, WorkProgressMonitor progressMonitor, 
+            AspectOutputJars jarSet) {
+        IClasspathEntry cpEntry = null;
+        File bazelOutputBase = bazelCommandRunner.getBazelWorkspaceOutputBase(progressMonitor);
+        IPath jarPath = getJarPathOnDisk(bazelOutputBase, jarSet.getJar());
+        if (jarPath != null) {
+            IPath srcJarPath = getJarPathOnDisk(bazelOutputBase, jarSet.getSrcJar());
+            IPath srcJarRootPath = null;
+            cpEntry = BazelPluginActivator.getJavaCoreHelper().newLibraryEntry(jarPath, srcJarPath, srcJarRootPath);
+        }
+        return cpEntry;
     }
 
     @SuppressWarnings("unused")
-    private IClasspathEntry[] jarsToClasspathEntries(BazelWorkspaceCommandRunner bazelCommandRunner, WorkProgressMonitor progressMonitor, Set<AspectOutputJars> jars) {
+    private IClasspathEntry[] jarsToClasspathEntries(BazelWorkspaceCommandRunner bazelCommandRunner, WorkProgressMonitor progressMonitor, 
+            Set<AspectOutputJars> jars) {
         IClasspathEntry[] entries = new IClasspathEntry[jars.size()];
         int i = 0;
-        File bazelExecRoot = bazelCommandRunner.getBazelWorkspaceExecRoot(progressMonitor);
+        File bazelOutputBase = bazelCommandRunner.getBazelWorkspaceOutputBase(progressMonitor);
         for (AspectOutputJars j : jars) {
-            entries[i] = BazelPluginActivator.getJavaCoreHelper().newLibraryEntry(getJarIPath(bazelExecRoot, j.getJar()),
-                getJarIPath(bazelExecRoot, j.getSrcJar()), null);
-            i++;
+            IPath jarPath = getJarPathOnDisk(bazelOutputBase, j.getJar());
+            if (jarPath != null) {
+                IPath srcJarPath = getJarPathOnDisk(bazelOutputBase, j.getSrcJar());
+                IPath srcJarRootPath = null;
+                entries[i] = BazelPluginActivator.getJavaCoreHelper().newLibraryEntry(jarPath, srcJarPath, srcJarRootPath);
+                i++;
+            }
         }
         return entries;
     }
 
-    private static IPath getJarIPath(File bazelExecRoot, String file) {
+    private IPath getJarPathOnDisk(File bazelOutputBase, String file) {
         if (file == null) {
             return null;
         }
-        Path path = Paths.get(bazelExecRoot.toString(), file);
+        Path path = Paths.get(bazelOutputBase.toString(), file);
 
-        // the jar file path can be a symlink, which, for an yet unknown reason, sometimes causes
-        // errors, like the one right below, when multiple projects are imported that reference the same
-        // jar (maven_jar)
-        // java.io.IOException: Unable to read archive: /private/var/tmp/_bazel_stoens/345d6a8a19886aa7411ecaa6653241c2/execroot/__main__/external/org_apache_httpcomponents_httpcore/jar/httpcore-4.4.11.jar
-        // at org.eclipse.jdt.internal.core.JavaModelManager.throwExceptionIfArchiveInvalid(JavaModelManager.java:2981)
-        // at org.eclipse.jdt.internal.core.JavaModelManager.getZipFile(JavaModelManager.java:2918)
-        // at org.eclipse.jdt.internal.core.JavaModelManager.getZipFile(JavaModelManager.java:2904)
-        // at org.eclipse.jdt.internal.core.JarPackageFragmentRoot.getJar(JarPackageFragmentRoot.java:264)
-        // at org.eclipse.jdt.internal.core.JarPackageFragmentRoot.computeChildren(JarPackageFragmentRoot.java:144)
-        // at org.eclipse.jdt.internal.core.PackageFragmentRoot.buildStructure(PackageFragmentRoot.java:165)
-        // ...
-        // the workaround is to follow the symlink
-
+        // Eclipse does not seem to like symlinks, so resolve them before providing to Eclipse
         if (Files.isSymbolicLink(path)) {
             try {
-                path = path.toRealPath();
+                path = Files.readSymbolicLink(path);
             } catch (IOException ex) {
-                throw new IllegalStateException(ex);
+                BazelPluginActivator.error("Not adding jar to project ["+eclipseProjectName+"] it does not exist on the filesystem: "+path);
+                printDirectoryDiagnostics(path.toFile().getParentFile().getParentFile(), " ");
             }
         }
+        
         return org.eclipse.core.runtime.Path.fromOSString(path.toString());
     }
 
@@ -350,4 +366,18 @@ public class BazelClasspathContainer implements IClasspathContainer {
         
     }
     
+    
+    private static void printDirectoryDiagnostics(File path, String indent) {
+        File[] children = path.listFiles();
+        System.out.println(indent+path.getAbsolutePath());
+        if (children != null) {
+            for (File child : children) {
+                System.out.println(indent+child.getName());
+                if (child.isDirectory()) {
+                    printDirectoryDiagnostics(child, "   "+indent);
+                }
+            }
+        } 
+        
+    }
 }

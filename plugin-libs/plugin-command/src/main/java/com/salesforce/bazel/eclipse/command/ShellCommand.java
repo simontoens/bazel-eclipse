@@ -132,9 +132,8 @@ public final class ShellCommand implements Command {
             throw interrupted;
         }
         finally {
-            // TODO this is contributing to the hanging problem seen after upgrade to Bazel 1.0?
-            //closeQuietly(stderr);
-            //closeQuietly(stdout);
+            closeQuietly(stderr);
+            closeQuietly(stdout);
         }
     }
 

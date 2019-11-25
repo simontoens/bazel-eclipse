@@ -99,12 +99,12 @@ def _aspect_impl(target, ctx):
   classpath_jars = depset()
   all_deps = []
 
-  print("Aspect Target:")
-  print(target)
-  print("  JavaInfo:")
-  print(target[JavaInfo])
-  print("  RuleAttrs:")
-  print(rule_attrs)
+  #print("Aspect Target:")
+  #print(target)
+  #print("  JavaInfo:")
+  #print(target[JavaInfo])
+  #print("  RuleAttrs:")
+  #print(rule_attrs)
 
   hasDepAttr = False
 
@@ -115,8 +115,8 @@ def _aspect_impl(target, ctx):
       if type(deps) == 'list':
         for dep in deps:
           if hasattr(dep, "output_data"):
-           print("  JSON FILES from attr")
-           print(dep.output_data.json_files)
+           #print("  JSON FILES from attr")
+           #print(dep.output_data.json_files)
            json_files += dep.output_data.json_files
            classpath_jars = depset(dep.output_data.classpath_jars.to_list(), transitive = [classpath_jars])
         all_deps += [str(dep.label) for dep in deps]
@@ -135,15 +135,15 @@ def _aspect_impl(target, ctx):
     classpath_jars = depset(target_classpath_jars.to_list(), transitive = [classpath_jars])
     json_file_path = ctx.actions.declare_file(target.label.name + ".bzleclipse-build.json")
     ctx.actions.write(json_file_path, json_data.to_json())
-    print("  JSON FILE PATH")
-    print(json_file_path)
+    #print("  JSON FILE PATH")
+    #print(json_file_path)
     json_files += [json_file_path]
 
-  print("  Attr State: DEP: %r JAVA: %r" % (hasDepAttr, hasJavaAttr))
-  print("  JSON FILES")
-  print(json_files)
-  print("  CLASSPATH JARS")
-  print(classpath_jars)
+  #print("  Attr State: DEP: %r JAVA: %r" % (hasDepAttr, hasJavaAttr))
+  #print("  JSON FILES")
+  #print(json_files)
+  #print("  CLASSPATH JARS")
+  #print(classpath_jars)
   
   return struct(
       output_groups = {

@@ -122,6 +122,7 @@ public class BazelBuilder extends IncrementalProjectBuilder {
         if (bazelWorkspaceCmdRunner == null) {
             super.clean(monitor);
         } else {
+            bazelWorkspaceCmdRunner.flushAspectInfoCache();
             bazelWorkspaceCmdRunner.runBazelClean(null);
         }
     }

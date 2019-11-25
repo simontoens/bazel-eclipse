@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -119,6 +120,12 @@ public class BazelWorkspaceCommandRunner {
      * running the aspect. This cache is cleared often (currently, every build, but that is too often)
      */
     private final Map<String, AspectPackageInfo> aspectInfoCache_current = new HashMap<>();
+
+    /**
+     * For wildcard targets //a/b/c:* we need to capture the resulting aspects that come from evaluation
+     * so that the underlying list of aspects can be rebuilt from cache
+     */
+    private final Map<String, Set<String>> aspectInfoCache_wildcards = new HashMap<>();
 
     /**
      * Cache of the Aspect data for each target. key=String target (//a/b/c) value=AspectPackageInfo data that came from
@@ -248,50 +255,26 @@ public class BazelWorkspaceCommandRunner {
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
 
         progressMonitor.subTask("Load Bazel dependency information");
-        String logstr = " [prj=" + eclipseProjectName + ", src=" + caller + "]";
-
-        List<String> cacheMissTargets = new ArrayList<>();
         Map<String, AspectPackageInfo> resultMap = new LinkedHashMap<>();
+
         for (String target : targets) {
-            AspectPackageInfo aspectInfo = aspectInfoCache_current.get(target);
-            if (aspectInfo != null) {
-                LOG.debug("ASPECT CACHE HIT target: {}", target + logstr);
-                resultMap.put(target, aspectInfo);
-            } else {
-                LOG.debug("ASPECT CACHE MISS target: {}", target + logstr);
-                cacheMissTargets.add(target);
-            }
-        }
-        progressMonitor.worked(resultMap.size());
-
-        if (cacheMissTargets.size() > 0) {
-            List<String> discoveredAspectFilePaths = generateAspectPackageInfoFiles(cacheMissTargets, progressMonitor);
-            ImmutableMap<String, AspectPackageInfo> map =
-                    AspectPackageInfo.loadAspectFilePaths(discoveredAspectFilePaths);
-            resultMap.putAll(map);
-            for (String target : map.keySet()) {
-                LOG.debug("ASPECT CACHE LOAD target: {}", target + logstr);
-                //LOG.debug(map.get(target).toString());
-                aspectInfoCache_current.put(target, map.get(target));
-                aspectInfoCache_lastgood.put(target, map.get(target));
-            }
-        }
-
-        if (resultMap.size() < targets.size()) {
-            // We have one or more missing targets, it could be because the user introduced a compile error in it and the Aspect wont run.
-            // In this case use the last known good result of the Aspect for that target and hope for the best. The lastgood cache is never
-            // cleared, so if the Aspect ran correctly at least once since the IDE started it should be here (but possibly out of date depending
-            // on what changes were introduced along with the compile error)
-            for (String target : targets) {
-                if (resultMap.get(target) == null) {
-                    AspectPackageInfo aspectInfo = aspectInfoCache_lastgood.get(target);
-                    if (aspectInfo != null) {
-                        resultMap.put(target, aspectInfo);
-                    } else {
-                        LOG.debug("ASPECT CACHE FAIL target: {}", target + logstr);
+            // is this a wilcard target? we have to handle that differently
+            if (target.endsWith("*")) {
+                Set<String> wildcardTargets = aspectInfoCache_wildcards.get(target);
+                if (wildcardTargets != null) {
+                    // we know what sub-targets resolve from the wildcard target, so add each sub-target aspect
+                    for (String wildcardTarget : wildcardTargets) {
+                        getAspectPackageInfoForTarget(wildcardTarget, eclipseProjectName, progressMonitor, caller, resultMap);
                     }
+                } else {
+                    // we haven't seen this wildcard before, we need to ask bazel what sub-targets it maps to
+                    Map<String, AspectPackageInfo> wildcardResultMap = new LinkedHashMap<>();
+                    getAspectPackageInfoForTarget(target, eclipseProjectName, progressMonitor, caller, wildcardResultMap);
+                    resultMap.putAll(wildcardResultMap);
+                    aspectInfoCache_wildcards.put(target, wildcardResultMap.keySet());
                 }
-                progressMonitor.worked(resultMap.size());
+            } else {
+                getAspectPackageInfoForTarget(target, eclipseProjectName, progressMonitor, caller, resultMap);
             }
         }
 
@@ -299,7 +282,47 @@ public class BazelWorkspaceCommandRunner {
 
         return resultMap;
     }
-
+    
+    private void getAspectPackageInfoForTarget(String target, String eclipseProjectName,
+            WorkProgressMonitor progressMonitor, String caller,
+            Map<String, AspectPackageInfo> resultMap)
+            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
+        String logstr = " [prj=" + eclipseProjectName + ", src=" + caller + "]";
+        
+        AspectPackageInfo aspectInfo = aspectInfoCache_current.get(target);
+        if (aspectInfo != null) {
+            LOG.info("ASPECT CACHE HIT target: {}", target + logstr);
+            resultMap.put(target, aspectInfo);
+        } else {
+            LOG.info("ASPECT CACHE MISS target: {}", target + logstr);
+            List<String> lookupTargets = new ArrayList<>();
+            lookupTargets.add(target);
+            List<String> discoveredAspectFilePaths = generateAspectPackageInfoFiles(lookupTargets, progressMonitor);
+            ImmutableMap<String, AspectPackageInfo> map = AspectPackageInfo.loadAspectFilePaths(discoveredAspectFilePaths);
+            resultMap.putAll(map);
+            for (String resultTarget : map.keySet()) {
+                LOG.info("ASPECT CACHE LOAD target: {}", resultTarget + logstr);
+                aspectInfoCache_current.put(resultTarget, map.get(resultTarget));
+                aspectInfoCache_lastgood.put(resultTarget, map.get(resultTarget));
+            }
+            if (resultMap.get(target) == null) {
+                // still don't have the aspect for the target, use the last known one that computed
+                // it could be because the user introduced a compile error in it and the Aspect wont run.
+                // In this case use the last known good result of the Aspect for that target and hope for the best. The lastgood cache is never
+                // cleared, so if the Aspect ran correctly at least once since the IDE started it should be here (but possibly out of date depending
+                // on what changes were introduced along with the compile error)
+                aspectInfo = aspectInfoCache_lastgood.get(target);
+                if (aspectInfo != null) {
+                    resultMap.put(target, aspectInfo);
+                } else {
+                    LOG.info("ASPECT CACHE FAIL target: {}", target + logstr);
+                }
+            }
+        }
+        
+        progressMonitor.worked(resultMap.size());
+    }
+    
     /**
      * Runs the Aspect for the list of passed targets. Returns the list of file paths to the output artifacts created by
      * the Aspects.
@@ -328,7 +351,6 @@ public class BazelWorkspaceCommandRunner {
      * Clear the entire AspectPackageInfo cache. This flushes the dependency graph for the workspace.
      */
     public synchronized void flushAspectInfoCache() {
-        // TODO revisit when to call this
         aspectInfoCache_current.clear();
     }
 
@@ -336,12 +358,20 @@ public class BazelWorkspaceCommandRunner {
      * Clear the AspectPackageInfo cache for the passed targets. This flushes the dependency graph for those targets.
      */
     public synchronized void flushAspectInfoCache(String... targets) {
-        // TODO revisit when to call this
         for (String target : targets) {
             aspectInfoCache_current.remove(target);
         }
     }
 
+    /**
+     * Clear the AspectPackageInfo cache for the passed targets. This flushes the dependency graph for those targets.
+     */
+    public synchronized void flushAspectInfoCache(List<String> targets) {
+        for (String target : targets) {
+            aspectInfoCache_current.remove(target);
+        }
+    }
+    
     /**
      * Run a bazel build on a list of targets in the current workspace.
      *

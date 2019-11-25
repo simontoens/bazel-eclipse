@@ -42,7 +42,7 @@ public abstract class CommandBuilder {
         this.stderrSelector = null;
         this.progressMonitor = null;
         
-        this.timeoutMS = 20000; // default timeout
+        this.timeoutMS = 100000; // default timeout
     }
 
     /**
