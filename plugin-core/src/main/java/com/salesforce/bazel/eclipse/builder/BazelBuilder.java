@@ -60,6 +60,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
+import com.salesforce.bazel.eclipse.classpath.BazelClasspathContainer;
 import com.salesforce.bazel.eclipse.command.BazelCommandFacade;
 import com.salesforce.bazel.eclipse.command.BazelCommandLineToolConfigurationException;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
@@ -125,6 +126,8 @@ public class BazelBuilder extends IncrementalProjectBuilder {
             bazelWorkspaceCmdRunner.flushAspectInfoCache();
             bazelWorkspaceCmdRunner.runBazelClean(null);
         }
+
+        BazelClasspathContainer.clean();
     }
     
     private boolean buildProjects(BazelWorkspaceCommandRunner cmdRunner, Collection<IProject> projects, WorkProgressMonitor progressMonitor, IProgressMonitor monitor)

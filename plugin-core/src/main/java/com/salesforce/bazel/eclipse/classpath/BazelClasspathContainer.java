@@ -85,6 +85,11 @@ public class BazelClasspathContainer implements IClasspathContainer {
     private final IJavaProject eclipseJavaProject;
     private final String eclipseProjectName;
     
+    private IClasspathEntry[] cachedEntries;
+    private long cachePutTimeMillis = 0;
+    
+    private static List<BazelClasspathContainer> instances = new ArrayList<>();
+    
     public BazelClasspathContainer(IProject eclipseProject, IJavaProject eclipseJavaProject)
             throws IOException, InterruptedException, BackingStoreException, JavaModelException,
             BazelCommandLineToolConfigurationException {
@@ -92,6 +97,15 @@ public class BazelClasspathContainer implements IClasspathContainer {
         this.eclipseJavaProject = eclipseJavaProject;
         this.eclipseProjectName = eclipseProject.getName();
         this.eclipseProjectPath = eclipseProject.getLocation();
+        
+        instances.add(this);
+    }
+    
+    public static void clean() {
+        for (BazelClasspathContainer instance : instances) {
+            instance.cachedEntries = null;
+            instance.cachePutTimeMillis = 0;
+        }
     }
 
     @Override
@@ -103,7 +117,18 @@ public class BazelClasspathContainer implements IClasspathContainer {
             throw new IllegalStateException("Attempt to retrieve the classpath of a Bazel Java project prior to setting up the Bazel workspace.");
         }
 
-        // TODO cache results for a limited time period, this gets called a many times during import on each project
+        if (this.cachedEntries != null) {
+            long now = System.currentTimeMillis();
+            if ((now - this.cachePutTimeMillis) > 30000) {
+                this.cachedEntries = null;
+            } else {
+                // TODO fix classpath caching during import, right now project refs might be brought in as jars because the associated project
+                //   may not have been imported yet. by not caching, the classpath is continually recomputed and eventually arrives in the right
+                //   state
+                //BazelPluginActivator.info("  Using cached classpath for project "+eclipseProjectName);
+                //return this.cachedEntries;
+            }
+        }
         
         // TODO figure out a way to get access to an Eclipse progress monitor here
         WorkProgressMonitor progressMonitor = new EclipseWorkProgressMonitor(null);
@@ -173,7 +198,9 @@ public class BazelClasspathContainer implements IClasspathContainer {
             return new IClasspathEntry[] {};
         }
 
-        return classpathEntries.toArray(new IClasspathEntry[] {});
+        this.cachePutTimeMillis = System.currentTimeMillis();
+        this.cachedEntries = classpathEntries.toArray(new IClasspathEntry[] {}); 
+        return cachedEntries;
     }
 
     @Override
