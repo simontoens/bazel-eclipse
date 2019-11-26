@@ -46,28 +46,21 @@ import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
 /**
  * API for calling bazel commands.
  */
-public class BazelCommandFacade {
+public class BazelCommandManager {
 
     private final BazelAspectLocation aspectLocation;
     private final CommandBuilder commandBuilder;
     private final CommandConsoleFactory consoleFactory;
 
     /**
-     * Location of the Bazel command line executable. This is configured by the Preferences, and usually defaults to
-     * /usr/local/bin/bazel but see BazelPreferenceInitializer for more details.
-     */
-    private File bazelExecutable = null;
-
-    
-    /**
-     * CommandRunner instance that is not tied to a workspace. Used to check the Bazel version, and to do a workspace
+     * BazelWorkspaceCommandRunner instance that is not tied to a workspace. Used to check the Bazel version, and to do a workspace
      * lookup given a random file system directory (since we don't know the workspace in advance, we can't use a
      * workspace specific runner for that).
      * <p>
-     * Be careful about adding new operations using this instance. Prefer to use the BazelWorkspaceCommandRunner
-     * interface instead, as that can pass in workspace specific options when running the command.
+     * Be careful about adding new operations using this instance. Prefer to use an instance attached to workspace
+     * instead, as that can pass in workspace specific options when running the command.
      */
-    private final BazelCommandRunner genericCommandRunner;
+    private final BazelWorkspaceCommandRunner genericCommandRunner;
     
     /**
     * The set of workspace specific command runners. The key is the File workspaceRoot. We don't yet support
@@ -76,15 +69,17 @@ public class BazelCommandFacade {
     private final Map<File, BazelWorkspaceCommandRunner> workspaceCommandRunners = new TreeMap<>();    
 
     /**
-     * Create a {@link BazelCommandFacade} object, providing the implementation for locating aspect and getting console
+     * Create a {@link BazelCommandManager} object, providing the implementation for locating aspect and getting console
      * streams.
      */
-    public BazelCommandFacade(BazelAspectLocation aspectLocation, CommandBuilder commandBuilder, CommandConsoleFactory consoleFactory) {
+    public BazelCommandManager(BazelAspectLocation aspectLocation, CommandBuilder commandBuilder, CommandConsoleFactory consoleFactory,
+            String bazelExecutablePath) {
         this.aspectLocation = aspectLocation;
         this.commandBuilder = commandBuilder;
         this.consoleFactory = consoleFactory;
         
-        this.genericCommandRunner = new BazelCommandRunner(this, commandBuilder);
+        BazelWorkspaceCommandRunner.setBazelExecutablePath(bazelExecutablePath);
+        this.genericCommandRunner = new BazelWorkspaceCommandRunner(new File(bazelExecutablePath), commandBuilder);
     }
 
     
@@ -94,7 +89,7 @@ public class BazelCommandFacade {
      * Provides a generic command runner not associated with any workspace. The set of commands that will work correctly using this
      * runner is very limited. Getting the bazel executable version is one.
      */
-    public BazelCommandRunner getGlobalCommandRunner() {
+    public BazelWorkspaceCommandRunner getGlobalCommandRunner() {
         return genericCommandRunner;
     }
     
@@ -105,7 +100,16 @@ public class BazelCommandFacade {
     public BazelWorkspaceCommandRunner getWorkspaceCommandRunner(File bazelWorkspaceRootDirectory) {
         BazelWorkspaceCommandRunner workspaceCommandRunner = workspaceCommandRunners.get(bazelWorkspaceRootDirectory);
         if (workspaceCommandRunner == null) {
-            workspaceCommandRunner = new BazelWorkspaceCommandRunner(this, this.aspectLocation, this.commandBuilder, this.consoleFactory, bazelWorkspaceRootDirectory); 
+            File bazelExecutable = null;
+            try {
+                bazelExecutable = new File(this.getBazelExecutablePath());
+            } catch (BazelCommandLineToolConfigurationException ex) {
+                ex.printStackTrace();
+                return null;
+            }
+            
+            workspaceCommandRunner = new BazelWorkspaceCommandRunner(bazelExecutable, this.aspectLocation, 
+                this.commandBuilder, this.consoleFactory, bazelWorkspaceRootDirectory); 
             workspaceCommandRunners.put(bazelWorkspaceRootDirectory, workspaceCommandRunner);
         }
         return workspaceCommandRunner;
@@ -118,7 +122,7 @@ public class BazelCommandFacade {
      * Set the path to the Bazel binary. Allows the user to override the default via the Preferences ui.
      */
     public synchronized void setBazelExecutablePath(String bazelExectuablePath) {
-        this.bazelExecutable = new File(bazelExectuablePath);
+        BazelWorkspaceCommandRunner.setBazelExecutablePath(bazelExectuablePath);
     }
 
     /**
@@ -129,24 +133,7 @@ public class BazelCommandFacade {
      * @throws BazelCommandLineToolConfigurationException
      */
     public String getBazelExecutablePath() throws BazelCommandLineToolConfigurationException {
-        if (bazelExecutable == null || !bazelExecutable.exists() || !bazelExecutable.canExecute()) {
-            throw new BazelCommandLineToolConfigurationException.BazelNotSetException();
-        }
-        return bazelExecutable.toString();
-    }
-
-    /**
-     * Checks the version of the bazel binary installed at the path specified in the Preferences.
-     *
-     * @param bazelExecutablePath
-     *            the proposed file system path to the Bazel executable
-     * @throws BazelCommandLineToolConfigurationException
-     */
-    public void checkBazelVersion(String bazelExecutablePath) throws BazelCommandLineToolConfigurationException {
-        File tmpDir = new File(System.getProperty("java.io.tmpdir", "/tmp"));
-        BazelVersionCheckCommand vc = new BazelVersionCheckCommand(tmpDir, consoleFactory);
-
-        vc.checkVersion(bazelExecutablePath);
+        return BazelWorkspaceCommandRunner.getBazelExecutablePath();
     }
 
 }

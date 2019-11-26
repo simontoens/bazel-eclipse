@@ -53,11 +53,12 @@ import org.junit.rules.TemporaryFolder;
 
 import com.salesforce.bazel.eclipse.abstractions.CommandConsole;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
+import com.salesforce.bazel.eclipse.command.shell.ShellCommand;
 
 /**
  * @{link Command}Test
  *
- *        TODO add tests also for the higher level Command classes like BazelCommandFacade
+ *        TODO add tests also for the higher level Command classes like BazelCommandManager
  */
 public class ShellCommandTest {
 

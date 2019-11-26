@@ -69,7 +69,7 @@ import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
 import com.salesforce.bazel.eclipse.builder.BazelBuilder;
 import com.salesforce.bazel.eclipse.classpath.BazelClasspathContainer;
 import com.salesforce.bazel.eclipse.classpath.BazelClasspathContainerInitializer;
-import com.salesforce.bazel.eclipse.command.BazelCommandFacade;
+import com.salesforce.bazel.eclipse.command.BazelCommandManager;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.model.AspectPackageInfo;
@@ -507,8 +507,8 @@ public class BazelEclipseProjectFactory {
      */
     private static AspectPackageInfos precomputeBazelAspectsForWorkspace(IProject rootEclipseProject, List<BazelPackageInfo> selectedBazelPackages,
             WorkProgressMonitor progressMonitor) {
-        BazelCommandFacade bazelCommandFacade = BazelPluginActivator.getBazelCommandFacade();
-        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandFacade.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
+        BazelCommandManager bazelCommandManager = BazelPluginActivator.getBazelCommandManager();
+        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandManager.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
 
         // figure out which Bazel targets will be imported, and generated AspectPackageInfos for each
         // The AspectPackageInfos have useful information that we use during import

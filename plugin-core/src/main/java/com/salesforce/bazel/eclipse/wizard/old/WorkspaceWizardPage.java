@@ -168,7 +168,7 @@ public class WorkspaceWizardPage extends WizardPage {
                 if (wr != null) {
                     workspaceRoot.setText(wr);
                     DirectoryTreeContentProvider.setFileTreeRoot(directories, new File(wr));
-                    completionProvider.setBazelInstance(BazelPluginActivator.getBazelCommandFacade()
+                    completionProvider.setBazelInstance(BazelPluginActivator.getBazelCommandManager()
                             .getWorkspaceCommandRunner(new File(getWorkspaceRoot())));
                 }
                 updateControls();

@@ -61,7 +61,7 @@ import com.google.common.collect.Multimap;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
 import com.salesforce.bazel.eclipse.classpath.BazelClasspathContainer;
-import com.salesforce.bazel.eclipse.command.BazelCommandFacade;
+import com.salesforce.bazel.eclipse.command.BazelCommandManager;
 import com.salesforce.bazel.eclipse.command.BazelCommandLineToolConfigurationException;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.config.BazelEclipseProjectFactory;
@@ -92,8 +92,8 @@ public class BazelBuilder extends IncrementalProjectBuilder {
         IProject project = getProject();
         progressMonitor.beginTask("Bazel build", 1);
         
-        BazelCommandFacade bazelCommandFacade = BazelPluginActivator.getBazelCommandFacade();
-        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandFacade.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
+        BazelCommandManager bazelCommandManager = BazelPluginActivator.getBazelCommandManager();
+        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandManager.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
         
         try {
             boolean buildSuccessful = buildProjects(bazelWorkspaceCmdRunner, Collections.singletonList(project), progressMonitor, monitor);
@@ -117,8 +117,8 @@ public class BazelBuilder extends IncrementalProjectBuilder {
         // this may not have a severe performance impact as bazel handles it efficiently but we may want to revisit
         // TODO: revisit if we want to clean only once when multiple targets are selected
         
-        BazelCommandFacade bazelCommandFacade = BazelPluginActivator.getBazelCommandFacade();
-        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandFacade.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
+        BazelCommandManager bazelCommandManager = BazelPluginActivator.getBazelCommandManager();
+        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandManager.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
         
         if (bazelWorkspaceCmdRunner == null) {
             super.clean(monitor);

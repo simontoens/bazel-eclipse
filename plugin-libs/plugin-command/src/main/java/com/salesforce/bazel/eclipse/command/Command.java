@@ -5,6 +5,9 @@ import java.util.function.Function;
 
 import com.google.common.collect.ImmutableList;
 
+/**
+ * A built command that can be run via the run() method.
+ */
 public interface Command {
 
     /**
@@ -24,16 +27,16 @@ public interface Command {
     ImmutableList<String> getSelectedErrorLines();
     
     /**
-     * Returns a ProcessBuilder configured to run this Command instance.
-     */
-    ProcessBuilder getProcessBuilder();
-
-    /**
      * Returns the list of lines selected from the standard output stream. Lines printed to the standard output stream
      * by the executed command can be filtered to be added to that list.
      *
      * @see {@link CommandBuilder#setStdoutLineSelector(Function)}
      */
     ImmutableList<String> getSelectedOutputLines();
+
+    /**
+     * Returns a ProcessBuilder configured to run this Command instance.
+     */
+    ProcessBuilder getProcessBuilder();
 
 }

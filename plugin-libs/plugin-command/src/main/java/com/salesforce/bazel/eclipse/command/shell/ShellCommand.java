@@ -34,7 +34,7 @@
  *
  */
 
-package com.salesforce.bazel.eclipse.command;
+package com.salesforce.bazel.eclipse.command.shell;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,9 +47,11 @@ import com.google.common.collect.ImmutableList;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsole;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
+import com.salesforce.bazel.eclipse.command.Command;
+import com.salesforce.bazel.eclipse.command.CommandBuilder;
 
 /**
- * A utility class to spawn a command in the shell and parse its output. It allow to filter the output, 
+ * A utility class to spawn a command in the shell and parse its output. It allows to filter the output, 
  * redirecting part of it to the console and getting the rest in a list of string.
  * <p>
  * This class can only be initialized using a builder created with the {@link #builder()} method.

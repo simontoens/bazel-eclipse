@@ -10,13 +10,22 @@ import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
 
 /**
- * A builder class to generate a Command object.
+ * A base builder class to generate a Bazel Command object. This is a low level API
+ * and typically there are convenience methods in BazelWorkspaceCommandRunner that
+ * will create the commands for you.
+ * <p>
+ * Specific implementations include the ShellCommandBuilder (which creates actual shell invocations) 
+ * and the MockCommandBuilder (for running functional tests that simulate shell invocations).
+ * <p>
+ * As currently implemented, this class is not thread-safe. Meaning a single builder is stateful and
+ * can only build one command object at a time. Invoking build() clears the state and makes the builder
+ * ready for the next command to build.
  */
 public abstract class CommandBuilder {
 
     protected String consoleName = null;
     protected File directory;
-    protected ImmutableList.Builder<String> args = ImmutableList.builder();
+    protected ImmutableList.Builder<String> args;
     protected OutputStream stdout = null;
     protected OutputStream stderr = null;
     protected Function<String, String> stdoutSelector;
@@ -27,11 +36,12 @@ public abstract class CommandBuilder {
 
     protected CommandBuilder(final CommandConsoleFactory consoleFactory) {
         this.consoleFactory = consoleFactory;
+        
+        // set the initial setate
         this.reset();
     }
     
     public void reset() {
-        // TODO redo the CommandBuilder so an explicit reset is not necessary
         this.consoleName = null;
         // Default to the current working directory
         this.directory = new File(System.getProperty("user.dir"));
@@ -42,6 +52,7 @@ public abstract class CommandBuilder {
         this.stderrSelector = null;
         this.progressMonitor = null;
         
+        // TODO make Bazel command timeout configurable
         this.timeoutMS = 100000; // default timeout
     }
 
@@ -115,7 +126,7 @@ public abstract class CommandBuilder {
      * The selector is passed all lines that are printed to the standard output. It can either returns null to say
      * that the line should be passed to the console or to a non null value that will be stored. All values that
      * have been selected (for which the selector returns a non-null value) will be stored in a list accessible
-     * through {@link ShellCommand#getSelectedOutputLines()}. The selected lines will not be printed to the console.
+     * through {@link Command#getSelectedOutputLines()}. The selected lines will not be printed to the console.
      */
     public CommandBuilder setStdoutLineSelector(Function<String, String> selector) {
         this.stdoutSelector = selector;
@@ -129,7 +140,7 @@ public abstract class CommandBuilder {
      * The selector is passed all lines that are printed to the standard error. It can either returns null to say
      * that the line should be passed to the console or to a non null value that will be stored. All values that
      * have been selected (for which the selector returns a non-null value) will be stored in a list accessible
-     * through {@link ShellCommand#getSelectedErrorLines()}. The selected lines will not be printed to the console.
+     * through {@link Command#getSelectedErrorLines()}. The selected lines will not be printed to the console.
      */
     public CommandBuilder setStderrLineSelector(Function<String, String> selector) {
         this.stderrSelector = selector;
@@ -155,5 +166,19 @@ public abstract class CommandBuilder {
     /**
      * Build a Command object.
      */
-    public abstract Command build() throws IOException;
+    public Command build() throws IOException {
+        Command command = null;
+        try {
+            command = this.build_impl();
+        } finally {
+            this.reset();
+        }
+        return command;
+    }
+    
+    /**
+     * Build the specific Command implementation object.
+     */
+    protected abstract Command build_impl() throws IOException;
+
 }

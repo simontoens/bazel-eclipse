@@ -57,7 +57,6 @@ import org.eclipse.jdt.launching.JavaRuntime;
 
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
-import com.salesforce.bazel.eclipse.command.BazelCommandBuilder;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.command.Command;
 import com.salesforce.bazel.eclipse.launch.BazelLaunchConfigurationSupport.BazelLaunchConfigAttributes;
@@ -81,7 +80,6 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
     private static int DEBUG_PORT = getAvailablePort();
     private static String DEBUG_HOST = "localhost";
 
-    private static final BazelLaunchConfigurationSupport support = new BazelLaunchConfigurationSupport();
 
     @Override
     public void launch(ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor)
@@ -94,9 +92,9 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
         String targetKindStr = getAttributeValue(configuration, BazelLaunchConfigAttributes.TARGET_KIND);
         TargetKind targetKind = TargetKind.valueOfIgnoresCaseRequiresMatch(targetKindStr);
         IProject project = getProject(projectName);
-        BazelWorkspaceCommandRunner bazelRunner = getBazelWorkspaceCommandRunner(project);
+        BazelWorkspaceCommandRunner bazelCommandRunner = BazelPluginActivator.getInstance().getWorkspaceCommandRunner();
 
-        Command cmd = new BazelCommandBuilder(bazelRunner, label, targetKind, bazelArgs)
+        Command cmd = bazelCommandRunner.getBazelLauncherBuilder().setLabel(label).setTargetKind(targetKind).setArgs(bazelArgs)
                 .setDebugMode(isDebugMode, DEBUG_HOST, DEBUG_PORT).build();
         ProcessBuilder processBuilder = cmd.getProcessBuilder();
 
@@ -110,10 +108,6 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
 
     protected IProject getProject(String projectName) {
         return BazelPluginActivator.getResourceHelper().getEclipseWorkspaceRoot().getProject(projectName);
-    }
-
-    protected BazelWorkspaceCommandRunner getBazelWorkspaceCommandRunner(IProject project) {
-        return support.getBazelCommandRunnerForProject(project);
     }
 
     protected void launchExec(ILaunchConfiguration configuration, IProject project, List<String> commandTokens,

@@ -48,7 +48,6 @@ import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
-import com.salesforce.bazel.eclipse.command.BazelCommandFacade;
 import com.salesforce.bazel.eclipse.command.BazelCommandLineToolConfigurationException;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.config.BazelEclipseProjectSupport;
@@ -163,12 +162,6 @@ class BazelLaunchConfigurationSupport {
     }
 
 
-    BazelWorkspaceCommandRunner getBazelCommandRunnerForProject(IProject project) {
-        BazelCommandFacade bazelCommandFacade = BazelPluginActivator.getBazelCommandFacade();
-        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandFacade.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
-        return bazelWorkspaceCmdRunner;
-    }
-
     /**
      * Returns all runnable Bazel targets for the specified project.
      * 
@@ -191,7 +184,7 @@ class BazelLaunchConfigurationSupport {
      * Returns all AspectPackageInfo instances that represent targets of the specified type, for the specified project.
      */
     Collection<AspectPackageInfo> getAspectPackageInfosForProject(IProject project, EnumSet<TargetKind> targetTypes) {
-        BazelWorkspaceCommandRunner bazelRunner = getBazelCommandRunnerForProject(project);
+        BazelWorkspaceCommandRunner bazelRunner = BazelPluginActivator.getInstance().getWorkspaceCommandRunner();
         AspectPackageInfos apis = computeAspectPackageInfos(project, bazelRunner, WorkProgressMonitor.NOOP);
         return apis.lookupByTargetKind(targetTypes);
     }

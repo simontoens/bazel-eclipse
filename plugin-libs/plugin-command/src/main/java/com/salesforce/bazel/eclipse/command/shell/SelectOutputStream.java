@@ -34,7 +34,7 @@
  *
  */
 
-package com.salesforce.bazel.eclipse.command;
+package com.salesforce.bazel.eclipse.command.shell;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

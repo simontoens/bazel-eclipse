@@ -63,7 +63,7 @@ public class BazelPreferencePage extends FieldEditorPreferencePage implements IW
         @Override
         protected boolean doCheckState() {
             try {
-                BazelPluginActivator.getBazelCommandFacade().checkBazelVersion(getTextControl().getText());
+                BazelPluginActivator.getInstance().getWorkspaceCommandRunner().runBazelVersionCheck();
                 return true;
             } catch (BazelCommandLineToolConfigurationException e) {
                 setErrorMessage(e.getMessage());

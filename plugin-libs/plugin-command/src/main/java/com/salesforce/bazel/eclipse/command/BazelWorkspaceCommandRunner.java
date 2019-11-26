@@ -38,23 +38,21 @@ package com.salesforce.bazel.eclipse.command;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.salesforce.bazel.eclipse.abstractions.BazelAspectLocation;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
-import com.salesforce.bazel.eclipse.command.BazelCommandRunner.ConsoleType;
+import com.salesforce.bazel.eclipse.command.internal.BazelCommandExecutor;
+import com.salesforce.bazel.eclipse.command.internal.BazelQueryHelper;
+import com.salesforce.bazel.eclipse.command.internal.BazelVersionChecker;
+import com.salesforce.bazel.eclipse.command.internal.BazelWorkspaceAspectHelper;
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.logging.LoggerFacade;
 import com.salesforce.bazel.eclipse.model.AspectPackageInfo;
@@ -64,18 +62,15 @@ import com.salesforce.bazel.eclipse.model.BazelOutputParser;
 /**
  * An instance of the Bazel command interface for a specific workspace. Provides the API to run Bazel commands on a
  * specific workspace.
+ * <p>
+ * There is also an instance of this class that is not associated with a workspace (the global runner) but it is limited
+ * in the commands it can run. It is intended only to run commands like the Bazel version check.
  */
 public class BazelWorkspaceCommandRunner {
     static final LogHelper LOG = LogHelper.log(BazelWorkspaceCommandRunner.class);;
-
-    private static final BazelOutputParser outputParser = new BazelOutputParser();
-
-    /**
-     * Underlying command runner. Technically, we could have a single command runner for all Bazel workspaces open in
-     * the Eclipse workspace, but it may be helpful to have an instance dedicated for each.
-     */
-    private final BazelCommandRunner bazelCommandRunner;
-
+    
+    // WORKSPACE CONFIG
+    
     /**
      * The location on disk for the workspace.
      */
@@ -105,51 +100,102 @@ public class BazelWorkspaceCommandRunner {
      */
     private File bazelBinDirectory;
 
+    
+    // GLOBAL CONFIG
+    
     /**
-     * These arguments are added to all "bazel build" commands that run for the purpose of building code.
+     * Location of the Bazel command line executable. This is configured by the Preferences, and usually defaults to
+     * /usr/local/bin/bazel but see BazelPreferenceInitializer for more details.
      */
-    private final List<String> buildOptions;
+    private static File bazelExecutable = null;
 
     /**
-     * These arguments are added to all "bazel build" commands that run for aspect processing
+     * Shared class for low level parsing of Bazel command output
      */
-    private final List<String> aspectOptions;
+    private static final BazelOutputParser outputParser = new BazelOutputParser();
+
+    
+    // COLLABORATORS 
+    
+    /**
+     * Builder for Bazel commands, which may be a ShellCommandBuilder (for real Eclipse use) or a MockCommandBuilder 
+     * (for simulations during functional tests).
+     */
+    private CommandBuilder commandBuilder;
 
     /**
-     * Cache of the Aspect data for each target. key=String target (//a/b/c) value=AspectPackageInfo data that came from
-     * running the aspect. This cache is cleared often (currently, every build, but that is too often)
+     * Underlying command invoker which takes built Command objects and executes them.
      */
-    private final Map<String, AspectPackageInfo> aspectInfoCache_current = new HashMap<>();
+    private final BazelCommandExecutor bazelCommandExecutor;
 
     /**
-     * For wildcard targets //a/b/c:* we need to capture the resulting aspects that come from evaluation
-     * so that the underlying list of aspects can be rebuilt from cache
+     * Helper for running, collecting and caching the aspects that emit build dependency info for this workspace. 
      */
-    private final Map<String, Set<String>> aspectInfoCache_wildcards = new HashMap<>();
+    private final BazelWorkspaceAspectHelper aspectHelper;
+    
+    /**
+     * Helper for running bazel query commands.
+     */
+    private final BazelQueryHelper bazelQueryHelper;
+    
+    /**
+     * Helper for running version checks of the configured Bazel executable. 
+     */
+    private final BazelVersionChecker bazelVersionChecker;
 
     /**
-     * Cache of the Aspect data for each target. key=String target (//a/b/c) value=AspectPackageInfo data that came from
-     * running the aspect. This cache is never cleared and is used for cases in which the developer introduces a compile
-     * error into the package, such that the Aspect will fail to run.
+     * These arguments are added to all "bazel build" commands that run for the purpose of building code. These may be
+     * workspace specific.
      */
-    private final Map<String, AspectPackageInfo> aspectInfoCache_lastgood = new HashMap<>();
+    private List<String> buildOptions = Collections.emptyList();
 
-    BazelWorkspaceCommandRunner(BazelCommandFacade bazelCommandFacade, BazelAspectLocation aspectLocation,
+    
+    
+    // CTORS
+
+    /**
+     * This constructor creates the 'global' runner, which is a limited runner that only runs commands such as version check.
+     */
+    BazelWorkspaceCommandRunner(File bazelExecutable, CommandBuilder commandBuilder) {
+
+        this.commandBuilder = commandBuilder;
+        this.bazelCommandExecutor = new BazelCommandExecutor(bazelExecutable, commandBuilder);        
+        this.bazelVersionChecker = new BazelVersionChecker(this.commandBuilder);
+        
+        // these operations are not available without a workspace, and are nulled out
+        this.bazelWorkspaceRootDirectory = null;
+        this.aspectHelper = null;
+        this.bazelQueryHelper = null;
+    }
+    
+    /**
+     * For each Bazel workspace in the Eclipse workspace, there will be an instance of this runner.
+     */
+    BazelWorkspaceCommandRunner(File bazelExecutable, BazelAspectLocation aspectLocation,
             CommandBuilder commandBuilder, CommandConsoleFactory consoleFactory, File bazelWorkspaceRoot) {
 
         if (bazelWorkspaceRoot == null || !bazelWorkspaceRoot.exists()) {
             throw new IllegalArgumentException("Bazel workspace root directory cannot be null, and must exist.");
         }
         this.bazelWorkspaceRootDirectory = bazelWorkspaceRoot;
-        this.bazelCommandRunner = new BazelCommandRunner(bazelCommandFacade, commandBuilder);
-        this.buildOptions = Collections.emptyList();
-        this.aspectOptions = ImmutableList.<String> builder()
-                .add("--override_repository=local_eclipse_aspect=" + aspectLocation.getAspectDirectory(),
-                    "--aspects=@local_eclipse_aspect" + aspectLocation.getAspectLabel(), "-k",
-                    "--output_groups=json-files,classpath-jars,-_,-defaults", "--experimental_show_artifacts")
-                .build();
+        this.commandBuilder = commandBuilder;
+        this.bazelCommandExecutor = new BazelCommandExecutor(bazelExecutable, commandBuilder);
+        
+        this.aspectHelper = new BazelWorkspaceAspectHelper(this, aspectLocation, this.bazelCommandExecutor);
+        this.bazelVersionChecker = new BazelVersionChecker(this.commandBuilder);
+        this.bazelQueryHelper = new BazelQueryHelper(bazelCommandExecutor);
     }
 
+    
+    // WORKSPACE CONFIG
+    
+    /**
+     * Returns the workspace root directory (where the WORKSPACE file is) for the workspace associated with this runner
+     */
+    public File getBazelWorkspaceRootDirectory() {
+        return this.bazelWorkspaceRootDirectory;
+    }
+    
     /**
      * Returns the execution root of the current Bazel workspace.
      *
@@ -160,8 +206,8 @@ public class BazelWorkspaceCommandRunner {
 
         if (bazelExecRootDirectory == null) {
             try {
-                List<String> outputLines = bazelCommandRunner.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "execution_root");
-                outputLines = BazelCommandRunner.stripInfoLines(outputLines);
+                List<String> outputLines = bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "execution_root");
+                outputLines = BazelCommandExecutor.stripInfoLines(outputLines);
                 bazelExecRootDirectory = new File(String.join("", outputLines));
             } catch (Exception anyE) {
                 throw new IllegalStateException(anyE);
@@ -179,8 +225,8 @@ public class BazelWorkspaceCommandRunner {
     public File getBazelWorkspaceOutputBase(WorkProgressMonitor progressMonitor) {
         if (bazelOutputBaseDirectory == null) {
             try {
-                List<String> outputLines = bazelCommandRunner.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "output_base");
-                outputLines = BazelCommandRunner.stripInfoLines(outputLines);
+                List<String> outputLines = bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "output_base");
+                outputLines = BazelCommandExecutor.stripInfoLines(outputLines);
                 bazelOutputBaseDirectory = new File(String.join("", outputLines));
 
             } catch (Exception anyE) {
@@ -199,8 +245,8 @@ public class BazelWorkspaceCommandRunner {
     public File getBazelWorkspaceBin(WorkProgressMonitor progressMonitor) {
         if (bazelBinDirectory == null) {
             try {
-                List<String> outputLines = bazelCommandRunner.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "bazel-bin");
-                outputLines = BazelCommandRunner.stripInfoLines(outputLines);
+                List<String> outputLines = bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "bazel-bin");
+                outputLines = BazelCommandExecutor.stripInfoLines(outputLines);
                 bazelBinDirectory = new File(String.join("", outputLines));
             } catch (Exception anyE) {
                 throw new IllegalStateException(anyE);
@@ -208,18 +254,43 @@ public class BazelWorkspaceCommandRunner {
         }
         return bazelBinDirectory;
     }
-
+    
     /**
-     * Runs the clean command on the workspace.
+     * These arguments are added to all "bazel build" commands that run for the purpose of building code. 
      */
-    public void runBazelClean(WorkProgressMonitor progressMonitor) {
-        try {
-            bazelCommandRunner.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "clean");
-        } catch (IOException | InterruptedException | BazelCommandLineToolConfigurationException e) {
-            e.printStackTrace();
-        }
+    public void setBuildOptions(List<String> buildOptions) {
+        this.buildOptions = buildOptions;
+    }
+    
+    // GLOBAL CONFIG
+    
+    /**
+     * Set the path to the Bazel binary. Allows the user to override the default via the Preferences ui.
+     */
+    public synchronized static void setBazelExecutablePath(String bazelExecutablePath) {
+        bazelExecutable = new File(bazelExecutablePath);
     }
 
+    /**
+     * Get the file system path to the Bazel executable. Set by the Preferences page, defaults to /usr/local/bin/bazel
+     * but see BazelPreferenceInitializer for the details of how it gets set initially.
+     *
+     * @return the file system path to the Bazel executable
+     * @throws BazelCommandLineToolConfigurationException
+     */
+    public static String getBazelExecutablePath() throws BazelCommandLineToolConfigurationException {
+        if (bazelExecutable == null || !bazelExecutable.exists() || !bazelExecutable.canExecute()) {
+            throw new BazelCommandLineToolConfigurationException.BazelNotSetException();
+        }
+        return bazelExecutable.toString();
+    }
+
+    
+    // OPERATIONS
+    
+    
+    // BUILD, BUILD INFO, RUN, TEST OPERATIONS
+    
     /**
      * Returns the list of targets found in the BUILD files for the given sub-directories. Uses Bazel Query to build the
      * list.
@@ -230,12 +301,55 @@ public class BazelWorkspaceCommandRunner {
      */
     public synchronized List<String> listBazelTargetsInBuildFiles(WorkProgressMonitor progressMonitor,
             File... directories) throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
-        StringBuilder builder = new StringBuilder();
-        for (File f : directories) {
-            builder.append(f.toURI().relativize(bazelWorkspaceRootDirectory.toURI()).getPath()).append("/... ");
-        }
-        return bazelCommandRunner.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "query", builder.toString());
+        return this.bazelQueryHelper.listBazelTargetsInBuildFiles(bazelWorkspaceRootDirectory, progressMonitor, directories);
     }
+    
+    /**
+     * Gives a list of target completions for the given beginning string. The result is the list of possible completion
+     * for a target pattern starting with string.
+     * <p>
+     * <b>WARNING:</b> this method was written for the original Bazel plugin for a search feature, but was not actually
+     * used as far as we can tell. It may or may not work as advertised.
+     *
+     * @param userSearchString
+     *            the partial target string entered by the user
+     *
+     * @throws BazelCommandLineToolConfigurationException
+     */
+    public List<String> getMatchingTargets(String userSearchString, WorkProgressMonitor progressMonitor)
+            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
+        return this.bazelQueryHelper.getMatchingTargets(this.bazelWorkspaceRootDirectory, userSearchString, progressMonitor);
+    }
+    
+    /**
+     * Run a bazel build on a list of targets in the current workspace.
+     *
+     * @return a List of error details, this list is empty if the build was successful
+     *
+     * @throws InterruptedException
+     * @throws IOException
+     * @throws BazelCommandLineToolConfigurationException
+     */
+    public synchronized List<BazelMarkerDetails> runBazelBuild(List<String> bazelTargets,
+            WorkProgressMonitor progressMonitor, List<String> extraArgs)
+            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
+        List<String> extraArgsList = ImmutableList.<String> builder().add("build").addAll(this.buildOptions)
+                .addAll(extraArgs).add("--").addAll(bazelTargets).build();
+
+        List<String> output = this.bazelCommandExecutor.runBazelAndGetErrorLines(bazelWorkspaceRootDirectory, progressMonitor,
+            extraArgsList, bazelTargets, new ErrorOutputSelector());
+        if (output.isEmpty()) {
+            return Collections.emptyList();
+        } else {
+            List<BazelMarkerDetails> errorDetails = outputParser.getErrorBazelMarkerDetails(output);
+            getLogger().debug(getClass(),
+                "\n" + String.join("\n", errorDetails.stream().map(d -> d.toString()).collect(Collectors.toList()))
+                        + "\n");
+            return errorDetails;
+        }
+    }
+    
+    // ASPECT OPERATIONS
 
     /**
      * Runs the analysis of the given list of targets using the build information Bazel Aspect and returns a map of
@@ -254,264 +368,71 @@ public class BazelWorkspaceCommandRunner {
             Collection<String> targets, WorkProgressMonitor progressMonitor, String caller)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
 
-        progressMonitor.subTask("Load Bazel dependency information");
-        Map<String, AspectPackageInfo> resultMap = new LinkedHashMap<>();
-
-        for (String target : targets) {
-            // is this a wilcard target? we have to handle that differently
-            if (target.endsWith("*")) {
-                Set<String> wildcardTargets = aspectInfoCache_wildcards.get(target);
-                if (wildcardTargets != null) {
-                    // we know what sub-targets resolve from the wildcard target, so add each sub-target aspect
-                    for (String wildcardTarget : wildcardTargets) {
-                        getAspectPackageInfoForTarget(wildcardTarget, eclipseProjectName, progressMonitor, caller, resultMap);
-                    }
-                } else {
-                    // we haven't seen this wildcard before, we need to ask bazel what sub-targets it maps to
-                    Map<String, AspectPackageInfo> wildcardResultMap = new LinkedHashMap<>();
-                    getAspectPackageInfoForTarget(target, eclipseProjectName, progressMonitor, caller, wildcardResultMap);
-                    resultMap.putAll(wildcardResultMap);
-                    aspectInfoCache_wildcards.put(target, wildcardResultMap.keySet());
-                }
-            } else {
-                getAspectPackageInfoForTarget(target, eclipseProjectName, progressMonitor, caller, resultMap);
-            }
-        }
-
-        progressMonitor.worked(resultMap.size());
-
-        return resultMap;
-    }
-    
-    private void getAspectPackageInfoForTarget(String target, String eclipseProjectName,
-            WorkProgressMonitor progressMonitor, String caller,
-            Map<String, AspectPackageInfo> resultMap)
-            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
-        String logstr = " [prj=" + eclipseProjectName + ", src=" + caller + "]";
-        
-        AspectPackageInfo aspectInfo = aspectInfoCache_current.get(target);
-        if (aspectInfo != null) {
-            LOG.info("ASPECT CACHE HIT target: {}", target + logstr);
-            resultMap.put(target, aspectInfo);
-        } else {
-            LOG.info("ASPECT CACHE MISS target: {}", target + logstr);
-            List<String> lookupTargets = new ArrayList<>();
-            lookupTargets.add(target);
-            List<String> discoveredAspectFilePaths = generateAspectPackageInfoFiles(lookupTargets, progressMonitor);
-            ImmutableMap<String, AspectPackageInfo> map = AspectPackageInfo.loadAspectFilePaths(discoveredAspectFilePaths);
-            resultMap.putAll(map);
-            for (String resultTarget : map.keySet()) {
-                LOG.info("ASPECT CACHE LOAD target: {}", resultTarget + logstr);
-                aspectInfoCache_current.put(resultTarget, map.get(resultTarget));
-                aspectInfoCache_lastgood.put(resultTarget, map.get(resultTarget));
-            }
-            if (resultMap.get(target) == null) {
-                // still don't have the aspect for the target, use the last known one that computed
-                // it could be because the user introduced a compile error in it and the Aspect wont run.
-                // In this case use the last known good result of the Aspect for that target and hope for the best. The lastgood cache is never
-                // cleared, so if the Aspect ran correctly at least once since the IDE started it should be here (but possibly out of date depending
-                // on what changes were introduced along with the compile error)
-                aspectInfo = aspectInfoCache_lastgood.get(target);
-                if (aspectInfo != null) {
-                    resultMap.put(target, aspectInfo);
-                } else {
-                    LOG.info("ASPECT CACHE FAIL target: {}", target + logstr);
-                }
-            }
-        }
-        
-        progressMonitor.worked(resultMap.size());
-    }
-    
-    /**
-     * Runs the Aspect for the list of passed targets. Returns the list of file paths to the output artifacts created by
-     * the Aspects.
-     *
-     * @throws BazelCommandLineToolConfigurationException
-     */
-    private synchronized List<String> generateAspectPackageInfoFiles(Collection<String> targets,
-            WorkProgressMonitor progressMonitor)
-            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
-
-        List<String> args =
-                ImmutableList.<String> builder().add("build").addAll(this.aspectOptions).addAll(targets).build();
-
-        // Strip out the artifact list, keeping the xyz.bzleclipse-build.json files (located in subdirs in the bazel-out path)
-        // Line must start with >>> and end with the aspect file suffix
-        Function<String, String> filter = t -> t.startsWith(">>>")
-                ? (t.endsWith(AspectPackageInfo.ASPECT_FILENAME_SUFFIX) ? t.substring(3) : "") : null;
-
-        List<String> listOfGeneratedFilePaths = this.bazelCommandRunner.runBazelAndGetErrorLines(ConsoleType.WORKSPACE,
-            bazelWorkspaceRootDirectory, progressMonitor, args, filter);
-
-        return listOfGeneratedFilePaths;
+        return this.aspectHelper.getAspectPackageInfos(eclipseProjectName, targets, progressMonitor, caller);
     }
 
     /**
      * Clear the entire AspectPackageInfo cache. This flushes the dependency graph for the workspace.
      */
     public synchronized void flushAspectInfoCache() {
-        aspectInfoCache_current.clear();
-    }
-
-    /**
-     * Clear the AspectPackageInfo cache for the passed targets. This flushes the dependency graph for those targets.
-     */
-    public synchronized void flushAspectInfoCache(String... targets) {
-        for (String target : targets) {
-            aspectInfoCache_current.remove(target);
-        }
+        this.aspectHelper.flushAspectInfoCache();
     }
 
     /**
      * Clear the AspectPackageInfo cache for the passed targets. This flushes the dependency graph for those targets.
      */
     public synchronized void flushAspectInfoCache(List<String> targets) {
-        for (String target : targets) {
-            aspectInfoCache_current.remove(target);
-        }
+        this.aspectHelper.flushAspectInfoCache(targets);
+    }
+    
+    
+    // CUSTOM OPERATIONS
+    
+    /**
+     * For issuing custom commands that are not supported in the specific APIs in this class, you can use the 
+     * CommandBuilder to build any command you need. For 'run' or 'test' commands, consider using the special purpose
+     * BazelLauncherBuilder instead.
+     */
+    public CommandBuilder getBazelCommandBuilder() {
+        return this.commandBuilder;
     }
     
     /**
-     * Run a bazel build on a list of targets in the current workspace.
-     *
-     * @return a List of error details, this list is empty if the build was successful
-     *
-     * @throws InterruptedException
-     * @throws IOException
-     * @throws BazelCommandLineToolConfigurationException
+     * For issuing custom launcher commands (e.g. 'bazel run', 'bazel test') 
      */
-    public synchronized List<BazelMarkerDetails> runBazelBuild(List<String> bazelTargets,
-            WorkProgressMonitor progressMonitor, List<String> extraArgs)
-            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
-        List<String> extraArgsList = ImmutableList.<String> builder().add("build").addAll(this.buildOptions)
-                .addAll(extraArgs).add("--").addAll(bazelTargets).build();
+    public BazelLauncherBuilder getBazelLauncherBuilder() {
+        BazelLauncherBuilder launcherBuilder = new BazelLauncherBuilder(this, this.bazelCommandExecutor);
+        
+        return launcherBuilder;
+    }
 
-        List<String> output = this.bazelCommandRunner.runBazelAndGetErrorLines(bazelWorkspaceRootDirectory, progressMonitor,
-            extraArgsList, bazelTargets, new ErrorOutputSelector());
-        if (output.isEmpty()) {
-            return Collections.emptyList();
-        } else {
-            List<BazelMarkerDetails> errorDetails = outputParser.getErrorBazelMarkerDetails(output);
-            getLogger().debug(getClass(),
-                "\n" + String.join("\n", errorDetails.stream().map(d -> d.toString()).collect(Collectors.toList()))
-                        + "\n");
-            return errorDetails;
+    
+    // SPECIAL OPERATIONS
+    
+
+    /**
+     * Runs the clean command on the workspace.
+     */
+    public void runBazelClean(WorkProgressMonitor progressMonitor) {
+        try {
+            bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "clean");
+        } catch (IOException | InterruptedException | BazelCommandLineToolConfigurationException e) {
+            e.printStackTrace();
         }
     }
-
-    private LoggerFacade getLogger() {
-        return LoggerFacade.instance();
-    }
-
+        
     /**
-     * Builds and returns a Command instance representing a "bazel run" invocation.
-     *
-     * @return Command instance
-     */
-    public Command getBazelRunCommand(List<String> bazelTargets, List<String> extraArgs)
-            throws IOException, BazelCommandLineToolConfigurationException {
-        List<String> args = ImmutableList.<String> builder().add("run").addAll(this.buildOptions).addAll(extraArgs)
-                .add("--").addAll(bazelTargets).build();
-
-        WorkProgressMonitor progressMonitor = null;
-
-        return this.bazelCommandRunner.buildBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, args);
-    }
-
-    /**
-     * Builds and returns a Command instance representing a "bazel test" invocation.
-     *
-     * @return Command instance
-     */
-    public Command getBazelTestCommand(List<String> bazelTargets, List<String> extraArgs)
-            throws IOException, BazelCommandLineToolConfigurationException {
-
-        // need to add single method support:
-        // --test_filter=com.blah.foo.hello.HelloAgain2Test#testHelloAgain2$
-
-        List<String> args = ImmutableList.<String> builder().add("test").addAll(this.buildOptions)
-                .add("--test_output=streamed").add("--test_strategy=exclusive").add("--test_timeout=9999")
-                .add("--nocache_test_results").add("--runs_per_test=1").add("--flaky_test_attempts=1").addAll(extraArgs)
-                .add("--").addAll(bazelTargets).build();
-
-        WorkProgressMonitor progressMonitor = null;
-
-        return this.bazelCommandRunner.buildBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, args);
-    }
-
-    /**
-     * Gives a list of target completions for the given beginning string. The result is the list of possible completion
-     * for a target pattern starting with string.
-     * <p>
-     * <b>WARNING:</b> this method was written for the original Bazel plugin for a search feature, but was not actually
-     * used as far as we can tell. It may or may not work as advertised.
-     *
-     * @param userSearchString
-     *            the partial target string entered by the user
+     * Checks the version of the bazel binary configured at the path specified in the Preferences.
      *
      * @throws BazelCommandLineToolConfigurationException
      */
-    public List<String> getMatchingTargets(String userSearchString, WorkProgressMonitor progressMonitor)
-            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
-        if (userSearchString.equals("/") || userSearchString.isEmpty()) {
-            return ImmutableList.of("//");
-        } else if (userSearchString.contains(":")) {
-            // complete targets using `bazel query`
-            int idx = userSearchString.indexOf(':');
-            final String packageName = userSearchString.substring(0, idx);
-            final String targetPrefix = userSearchString.substring(idx + 1);
-            List<String> args = ImmutableList.<String> builder().add("query", packageName + ":*").build();
-            Function<String, String> selector = line -> {
-                int i = line.indexOf(':');
-                String s = line.substring(i + 1);
-                return !s.isEmpty() && s.startsWith(targetPrefix) ? (packageName + ":" + s) : null;
-            };
-
-            List<String> outputLines = this.bazelCommandRunner.runBazelAndGetOuputLines(ConsoleType.NO_CONSOLE,
-                bazelWorkspaceRootDirectory, progressMonitor, args, selector);
-
-            ImmutableList.Builder<String> builder = ImmutableList.builder();
-            builder.addAll(outputLines);
-
-            if ("all".startsWith(targetPrefix)) {
-                builder.add(packageName + ":all");
-            }
-            if ("*".startsWith(targetPrefix)) {
-                builder.add(packageName + ":*");
-            }
-            return builder.build();
-        } else {
-            // complete packages
-            int lastSlash = userSearchString.lastIndexOf('/');
-            final String prefix = lastSlash > 0 ? userSearchString.substring(0, lastSlash + 1) : "";
-            final String suffix = lastSlash > 0 ? userSearchString.substring(lastSlash + 1) : userSearchString;
-            final String directory = (prefix.isEmpty() || prefix.equals("//")) ? ""
-                    : prefix.substring(userSearchString.startsWith("//") ? 2 : 0, prefix.length() - 1);
-            File file = directory.isEmpty() ? bazelWorkspaceRootDirectory : new File(bazelWorkspaceRootDirectory, directory);
-            ImmutableList.Builder<String> builder = ImmutableList.builder();
-            File[] files = file.listFiles((f) -> {
-                // Only give directories whose name starts with suffix...
-                return f.getName().startsWith(suffix) && f.isDirectory()
-                // ...that does not start with '.'...
-                        && !f.getName().startsWith(".")
-                // ...and is not a Bazel convenience link
-                        && (!file.equals(bazelWorkspaceRootDirectory) || !f.getName().startsWith("bazel-"));
-            });
-            if (files != null) {
-                for (File d : files) {
-                    builder.add(prefix + d.getName() + "/");
-                    if (new File(d, "BUILD").exists()) {
-                        builder.add(prefix + d.getName() + ":");
-                    }
-                }
-            }
-            if ("...".startsWith(suffix)) {
-                builder.add(prefix + "...");
-            }
-            return builder.build();
-        }
+    public void runBazelVersionCheck() throws BazelCommandLineToolConfigurationException {
+        bazelVersionChecker.runBazelVersionCheck(bazelExecutable, this.bazelWorkspaceRootDirectory);
     }
+
+
+    // HELPERS
+    
 
     private static class ErrorOutputSelector implements Function<String, String> {
 
@@ -525,4 +446,9 @@ public class BazelWorkspaceCommandRunner {
             return keep ? line : null;
         }
     }
+
+    private LoggerFacade getLogger() {
+        return LoggerFacade.instance();
+    }
+
 }

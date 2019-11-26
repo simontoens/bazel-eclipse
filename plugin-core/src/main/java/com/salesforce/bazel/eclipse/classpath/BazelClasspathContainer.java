@@ -64,9 +64,10 @@ import org.osgi.service.prefs.BackingStoreException;
 
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
-import com.salesforce.bazel.eclipse.command.BazelCommandFacade;
+import com.salesforce.bazel.eclipse.command.BazelCommandManager;
 import com.salesforce.bazel.eclipse.command.BazelCommandLineToolConfigurationException;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
+import com.salesforce.bazel.eclipse.config.BazelEclipseProjectFactory;
 import com.salesforce.bazel.eclipse.config.BazelEclipseProjectSupport;
 import com.salesforce.bazel.eclipse.model.AspectOutputJars;
 import com.salesforce.bazel.eclipse.model.AspectPackageInfo;
@@ -79,6 +80,9 @@ import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
  */
 public class BazelClasspathContainer implements IClasspathContainer {
     public static final String CONTAINER_NAME = "com.salesforce.bazel.eclipse.BAZEL_CONTAINER";
+    
+    // TODO make classpath cache timeout configurable
+    private static final long CLASSPATH_CACHE_TIMEOUT_MS = 30000; 
 
     private final IPath eclipseProjectPath;
     private final IProject eclipseProject;
@@ -110,8 +114,6 @@ public class BazelClasspathContainer implements IClasspathContainer {
 
     @Override
     public IClasspathEntry[] getClasspathEntries() {
-        BazelPluginActivator.info("Computing classpath for project "+eclipseProjectName);
-        
         // sanity check
         if (!BazelPluginActivator.hasBazelWorkspaceRootDirectory()) {
             throw new IllegalStateException("Attempt to retrieve the classpath of a Bazel Java project prior to setting up the Bazel workspace.");
@@ -119,17 +121,24 @@ public class BazelClasspathContainer implements IClasspathContainer {
 
         if (this.cachedEntries != null) {
             long now = System.currentTimeMillis();
-            if ((now - this.cachePutTimeMillis) > 30000) {
+            if ((now - this.cachePutTimeMillis) > CLASSPATH_CACHE_TIMEOUT_MS) {
                 this.cachedEntries = null;
             } else {
-                // TODO fix classpath caching during import, right now project refs might be brought in as jars because the associated project
-                //   may not have been imported yet. by not caching, the classpath is continually recomputed and eventually arrives in the right
-                //   state
-                //BazelPluginActivator.info("  Using cached classpath for project "+eclipseProjectName);
-                //return this.cachedEntries;
+                if (BazelEclipseProjectFactory.importInProgress.get()) {
+                    // classpath computation is iterative right now during import, each project's classpath is computed many times. 
+                    // earlier in the import process, project refs might be brought in as jars because the associated project
+                    //   may not have been imported yet. 
+                    // by not caching during import, the classpath is continually recomputed and eventually arrives in the right state
+                    BazelPluginActivator.debug("  Recomputing classpath for project "+eclipseProjectName+" because we are in an import operation.");
+                } else {
+                    BazelPluginActivator.debug("  Using cached classpath for project "+eclipseProjectName);
+                    return this.cachedEntries;
+                }
             }
         }
         
+        BazelPluginActivator.info("Computing classpath for project "+eclipseProjectName);
+
         // TODO figure out a way to get access to an Eclipse progress monitor here
         WorkProgressMonitor progressMonitor = new EclipseWorkProgressMonitor(null);
 
@@ -141,7 +150,7 @@ public class BazelClasspathContainer implements IClasspathContainer {
         List<IClasspathEntry> classpathEntries = new ArrayList<>();
         Set<IPath> projectsAddedToClasspath = new HashSet<>();
 
-        BazelCommandFacade commandFacade = BazelPluginActivator.getBazelCommandFacade();
+        BazelCommandManager commandFacade = BazelPluginActivator.getBazelCommandManager();
         BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = commandFacade.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
         
         try {
@@ -223,8 +232,8 @@ public class BazelClasspathContainer implements IClasspathContainer {
         if (bazelWorkspaceRootDirectory == null) {
             return false;
         }
-        BazelCommandFacade bazelCommandFacade = BazelPluginActivator.getBazelCommandFacade();
-        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandFacade.getWorkspaceCommandRunner(bazelWorkspaceRootDirectory);
+        BazelCommandManager bazelCommandManager = BazelPluginActivator.getBazelCommandManager();
+        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandManager.getWorkspaceCommandRunner(bazelWorkspaceRootDirectory);
         
         if (bazelWorkspaceCmdRunner != null) {
             if (this.eclipseProject.getName().startsWith("Bazel Workspace")) {

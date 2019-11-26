@@ -140,7 +140,7 @@ public class MockCommandBuilder extends CommandBuilder {
     // MOCK METHOD UNDER TEST
     
     @Override
-    public Command build() throws IOException {
+    public Command build_impl() throws IOException {
         MockCommand mockCommand = new MockCommand();
         
         List<String> commandArgs = args.build();
@@ -206,7 +206,6 @@ public class MockCommandBuilder extends CommandBuilder {
                     simulatedOutputLines.size()+" outputs configured. Command:\n" + commandPretty);
         }
 
-        this.reset();
         return mockCommand;
     }
 

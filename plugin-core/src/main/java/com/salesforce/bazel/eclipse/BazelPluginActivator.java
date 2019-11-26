@@ -45,10 +45,10 @@ import org.osgi.framework.BundleContext;
 
 import com.salesforce.bazel.eclipse.abstractions.BazelAspectLocation;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
-import com.salesforce.bazel.eclipse.command.BazelCommandFacade;
+import com.salesforce.bazel.eclipse.command.BazelCommandManager;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.command.CommandBuilder;
-import com.salesforce.bazel.eclipse.command.ShellCommandBuilder;
+import com.salesforce.bazel.eclipse.command.shell.ShellCommandBuilder;
 import com.salesforce.bazel.eclipse.config.BazelAspectLocationImpl;
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.preferences.BazelPreferencePage;
@@ -87,7 +87,7 @@ public class BazelPluginActivator extends AbstractUIPlugin {
     /**
      * Facade that enables the plugin to execute the bazel command line tool outside of a workspace
      */
-    private static BazelCommandFacade bazelCommandFacade;
+    private static BazelCommandManager bazelCommandManager;
     
     /**
      * Runs bazel commands in the loaded workspace.
@@ -132,25 +132,25 @@ public class BazelPluginActivator extends AbstractUIPlugin {
      * (when running in Eclipse, seen above) and the mocking framework call in here. When running for real,
      * the passed collaborators are all the real ones, when running mock tests the collaborators are mocks.
      */
-    public void startInternal(BazelAspectLocation aspectLocation, 
-            CommandBuilder commandBuilder, CommandConsoleFactory consoleFactory, ResourceHelper rh,
-            JavaCoreHelper javac) throws Exception {
-        
+    public void startInternal(BazelAspectLocation aspectLocation, CommandBuilder commandBuilder, CommandConsoleFactory consoleFactory, 
+            ResourceHelper rh, JavaCoreHelper javac) throws Exception {
+
         // global collaborators
-        plugin = this;
         resourceHelper = rh;
+        plugin = this;
         javaCoreHelper = javac;
-        bazelCommandFacade = new BazelCommandFacade(aspectLocation, commandBuilder, consoleFactory);
 
         // Get the bazel executable path from the settings, defaults to /usr/local/bin/bazel
         IPreferenceStore prefsStore =  resourceHelper.getPreferenceStore(this);
         String bazelPath = prefsStore.getString(BazelPreferencePage.BAZEL_PATH_PREF_NAME);
-        bazelCommandFacade.setBazelExecutablePath(bazelPath);
+
+        bazelCommandManager = new BazelCommandManager(aspectLocation, commandBuilder, consoleFactory, bazelPath);
+
         prefsStore.addPropertyChangeListener(new IPropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent event) {
                 if (event.getProperty().equals(BazelPreferencePage.BAZEL_PATH_PREF_NAME)) {
-                    bazelCommandFacade.setBazelExecutablePath(event.getNewValue().toString());
+                    bazelCommandManager.setBazelExecutablePath(event.getNewValue().toString());
                 }
             }
         });
@@ -165,7 +165,7 @@ public class BazelPluginActivator extends AbstractUIPlugin {
     @Override
     public void stop(BundleContext context) throws Exception {
         plugin = null;
-        bazelCommandFacade = null;
+        bazelCommandManager = null;
         resourceHelper = null;
         super.stop(context);
     }
@@ -231,11 +231,11 @@ public class BazelPluginActivator extends AbstractUIPlugin {
     
     
     /**
-     * Returns the unique instance of {@link BazelCommandFacade}, the facade enables the plugin to execute the bazel
+     * Returns the unique instance of {@link BazelCommandManager}, the facade enables the plugin to execute the bazel
      * command line tool.
      */
-    public static BazelCommandFacade getBazelCommandFacade() {
-        return bazelCommandFacade;
+    public static BazelCommandManager getBazelCommandManager() {
+        return bazelCommandManager;
     }
 
     /**
@@ -244,7 +244,7 @@ public class BazelPluginActivator extends AbstractUIPlugin {
     public BazelWorkspaceCommandRunner getWorkspaceCommandRunner() {
         if (bazelWorkspaceCommandRunner == null) {
             if (bazelWorkspaceRootDirectory != null) {
-                bazelWorkspaceCommandRunner = bazelCommandFacade.getWorkspaceCommandRunner(bazelWorkspaceRootDirectory);
+                bazelWorkspaceCommandRunner = bazelCommandManager.getWorkspaceCommandRunner(bazelWorkspaceRootDirectory);
             }
         }
         return bazelWorkspaceCommandRunner;
@@ -301,7 +301,14 @@ public class BazelPluginActivator extends AbstractUIPlugin {
             LOG.info(message);
         }
     }
-    
+
+    /**
+     * Log an info message to the eclipse log.
+     */
+    public static void debug(String message) {
+        LOG.debug(message);
+    }
+
     /**
      * If there is a failure in configuring the logging subsytem, this method gets called such that logging is
      * sent to System.err

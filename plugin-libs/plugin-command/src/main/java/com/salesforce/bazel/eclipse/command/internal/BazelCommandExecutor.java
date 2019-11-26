@@ -34,7 +34,7 @@
  *
  */
 
-package com.salesforce.bazel.eclipse.command;
+package com.salesforce.bazel.eclipse.command.internal;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,46 +44,51 @@ import java.util.function.Function;
 
 import com.google.common.collect.ImmutableList;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
+import com.salesforce.bazel.eclipse.command.BazelCommandLineToolConfigurationException;
+import com.salesforce.bazel.eclipse.command.Command;
+import com.salesforce.bazel.eclipse.command.CommandBuilder;
 
 /**
- * Utility class that understands how to formulate Bazel command line commands.
+ * Utility class that understands how to run Command objects and collect output from them.
  * <p>
  * TODO this class needs a refactor, why all the slightly different method signatures?
  */
-class BazelCommandRunner {
-    private final BazelCommandFacade bazelCommandFacade;
+public class BazelCommandExecutor {
+    private final File bazelExecutable;
     private final CommandBuilder commandBuilder;
 
-    static enum ConsoleType {
+    public static enum ConsoleType {
         NO_CONSOLE, SYSTEM, WORKSPACE
     }
 
-    BazelCommandRunner(BazelCommandFacade bazelCommandFacade, CommandBuilder commandBuilder) {
-        this.bazelCommandFacade = bazelCommandFacade;
+    public BazelCommandExecutor(File bazelExecutable, CommandBuilder commandBuilder) {
+        this.bazelExecutable = bazelExecutable;
         this.commandBuilder = commandBuilder;
     }
 
-    synchronized List<String> runBazelCommand(File workingDirectory, WorkProgressMonitor progressMonitor,
+    public synchronized List<String> runBazelCommand(File workingDirectory, WorkProgressMonitor progressMonitor,
             String... args) throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
         List<String> argList = ImmutableList.<String> builder().add(args).build();
         return this.runBazelAndGetOuputLines(ConsoleType.WORKSPACE, workingDirectory, progressMonitor, argList, (t) -> t);
     }
 
-    synchronized List<String> runBazelAndGetErrorLines(File directory, WorkProgressMonitor progressMonitor,
+    public synchronized List<String> runBazelAndGetErrorLines(File directory, WorkProgressMonitor progressMonitor,
             List<String> args, List<String> bazelTargets, Function<String, String> selector)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
+        
+        
         CommandBuilder builder = getConfiguredCommandBuilder(ConsoleType.WORKSPACE, directory, progressMonitor, args);
         Command command = builder.setStderrLineSelector(selector).build();
         command.run();
         return command.getSelectedErrorLines();
     }
 
-    synchronized List<String> runBazelAndGetOuputLines(ConsoleType type, File workingDirectory,
+    public synchronized List<String> runBazelAndGetOuputLines(ConsoleType type, File workingDirectory,
             WorkProgressMonitor progressMonitor, List<String> args, Function<String, String> selector)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
         
         Command command = commandBuilder.setConsoleName(getConsoleName(type, workingDirectory))
-                .setDirectory(workingDirectory).addArguments(bazelCommandFacade.getBazelExecutablePath())
+                .setDirectory(workingDirectory).addArguments(this.bazelExecutable.getAbsolutePath())
                 .addArguments(args).setStdoutLineSelector(selector).setProgressMonitor(progressMonitor).build();
         if (command.run() == 0) {
             return command.getSelectedOutputLines();
@@ -91,7 +96,7 @@ class BazelCommandRunner {
         return ImmutableList.of();
     }
 
-    synchronized List<String> runBazelAndGetErrorLines(ConsoleType consoleType, File directory,
+    public synchronized List<String> runBazelAndGetErrorLines(ConsoleType consoleType, File directory,
             WorkProgressMonitor progressMonitor, List<String> args, Function<String, String> selector)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
         CommandBuilder builder = getConfiguredCommandBuilder(consoleType, directory, progressMonitor, args);
@@ -107,7 +112,7 @@ class BazelCommandRunner {
      *
      * @return the Command instance encapsulating the command to run on the command line
      */
-    Command buildBazelCommand(File directory, WorkProgressMonitor progressMonitor, List<String> args)
+    public Command buildBazelCommand(File directory, WorkProgressMonitor progressMonitor, List<String> args)
             throws IOException, BazelCommandLineToolConfigurationException {
         CommandBuilder builder = getConfiguredCommandBuilder(ConsoleType.WORKSPACE, directory, progressMonitor, args);
         return builder.build();
@@ -118,7 +123,7 @@ class BazelCommandRunner {
      *
      * @return the process exit code
      */
-    int runBazel(File directory, WorkProgressMonitor progressMonitor, List<String> args)
+    public int runBazel(File directory, WorkProgressMonitor progressMonitor, List<String> args)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
         CommandBuilder builder = getConfiguredCommandBuilder(ConsoleType.WORKSPACE, directory, progressMonitor, args);
         Command cmd = builder.build();
@@ -146,12 +151,11 @@ class BazelCommandRunner {
             WorkProgressMonitor progressMonitor, List<String> args) throws BazelCommandLineToolConfigurationException {
         
         String consoleName = getConsoleName(type, directory);
-        String executablePath = bazelCommandFacade.getBazelExecutablePath();
         
         return commandBuilder
                 .setConsoleName(consoleName)
                 .setDirectory(directory)
-                .addArguments(executablePath)
+                .addArguments(this.bazelExecutable.getAbsolutePath())
                 .addArguments(args)
                 .setProgressMonitor(progressMonitor);
     }

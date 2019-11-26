@@ -5,7 +5,8 @@ Bundle-SymbolicName: com.salesforce.bazel.eclipse.command;singleton:=true
 Automatic-Module-Name: com.salesforce.bazel.eclipse.command
 Bundle-Version: 0.0.6.qualifier
 Export-Package: com.salesforce.bazel.eclipse.command;version="0.0.6.qualifier",
- com.salesforce.bazel.eclipse.command.mock
+ com.salesforce.bazel.eclipse.command.mock,
+ com.salesforce.bazel.eclipse.command.shell
 Import-Package: com.google.common.base,
  com.google.common.collect,
  com.salesforce.bazel.eclipse.abstractions;version="0.0.6.qualifier",
