@@ -89,7 +89,7 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
         String projectName = getAttributeValue(configuration, BazelLaunchConfigAttributes.PROJECT);
         Map<String, String> bazelArgs = getAttributeMap(configuration, BazelLaunchConfigAttributes.INTERNAL_BAZEL_ARGS);
         BazelLabel label = new BazelLabel(getAttributeValue(configuration, BazelLaunchConfigAttributes.LABEL));
-        String targetKindStr = getAttributeValue(configuration, BazelLaunchConfigAttributes.TARGET_KIND);
+        String targetKindStr = getAttributeValueWithDefault(configuration, BazelLaunchConfigAttributes.TARGET_KIND, "java_binary");
         TargetKind targetKind = TargetKind.valueOfIgnoresCaseRequiresMatch(targetKindStr);
         IProject project = getProject(projectName);
         BazelWorkspaceCommandRunner bazelCommandRunner = BazelPluginActivator.getInstance().getWorkspaceCommandRunner();
@@ -134,6 +134,20 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
     private static String getAttributeValue(ILaunchConfiguration configuration, BazelLaunchConfigAttributes attribute) {
         try {
             String value = configuration.getAttribute(attribute.getAttributeName(), (String) null);
+            if (value == null || value.isEmpty()) {
+                throw new IllegalStateException(
+                        "Launch Configuration Attribute without value: " + attribute.getAttributeName());
+            }
+            return value;
+        } catch (CoreException ex) {
+            throw new IllegalStateException(
+                    "Launch Configuration Attribute does not exist: " + attribute.getAttributeName());
+        }
+    }
+
+    private static String getAttributeValueWithDefault(ILaunchConfiguration configuration, BazelLaunchConfigAttributes attribute, String defaultValue) {
+        try {
+            String value = configuration.getAttribute(attribute.getAttributeName(), (String) defaultValue);
             if (value == null || value.isEmpty()) {
                 throw new IllegalStateException(
                         "Launch Configuration Attribute without value: " + attribute.getAttributeName());

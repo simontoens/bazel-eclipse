@@ -131,13 +131,13 @@ public class BazelEclipseProjectFactory {
         // clear out state flag in the Bazel classpath initializer in case there was a previous failed import run
         BazelClasspathContainerInitializer.isCorrupt.set(false);
 
-        String eclipseProjectNameForBazelWorkspace = "Bazel Workspace";
+        String eclipseProjectNameForBazelWorkspace = BazelNature.BAZELWORKSPACE_PROJECT_BASENAME;
         // TODO pull the workspace name out of the WORKSPACE file, until then use the directory name (e.g. bazel-demo)
         int lastSlash = bazelWorkspaceRoot.lastIndexOf(File.separator);
         if (lastSlash >= 0 && (bazelWorkspaceRoot.length() - lastSlash) > 3) {
             // add the directory name to the label, if it is meaningful (>3 chars)
-            eclipseProjectNameForBazelWorkspace =
-                    "Bazel Workspace (" + bazelWorkspaceRoot.substring(lastSlash + 1) + ")";
+            eclipseProjectNameForBazelWorkspace = BazelNature.BAZELWORKSPACE_PROJECT_BASENAME+
+                    " (" + bazelWorkspaceRoot.substring(lastSlash + 1) + ")";
         }
 
         // TODO send this message to the EclipseConsole so the user actually sees it

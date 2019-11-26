@@ -62,6 +62,7 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
 import org.osgi.service.prefs.BackingStoreException;
 
+import com.salesforce.bazel.eclipse.BazelNature;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
 import com.salesforce.bazel.eclipse.command.BazelCommandManager;
@@ -119,96 +120,112 @@ public class BazelClasspathContainer implements IClasspathContainer {
             throw new IllegalStateException("Attempt to retrieve the classpath of a Bazel Java project prior to setting up the Bazel workspace.");
         }
 
-        if (this.cachedEntries != null) {
-            long now = System.currentTimeMillis();
-            if ((now - this.cachePutTimeMillis) > CLASSPATH_CACHE_TIMEOUT_MS) {
-                this.cachedEntries = null;
-            } else {
-                if (BazelEclipseProjectFactory.importInProgress.get()) {
-                    // classpath computation is iterative right now during import, each project's classpath is computed many times. 
-                    // earlier in the import process, project refs might be brought in as jars because the associated project
-                    //   may not have been imported yet. 
-                    // by not caching during import, the classpath is continually recomputed and eventually arrives in the right state
-                    BazelPluginActivator.debug("  Recomputing classpath for project "+eclipseProjectName+" because we are in an import operation.");
+        boolean foundCachedEntries = false;
+        boolean isImport = false;
+        
+        /**
+         * Observed behavior of Eclipse is that this method can get called multiple times before the first invocation completes, therefore 
+         * the cache is not as effective as it could be. Synchronize on this instance such that the first invocation completes and populates
+         * the cache before the subsequent calls are allowed to proceed.
+         */
+        synchronized (this) {
+        
+            if (this.cachedEntries != null) {
+                long now = System.currentTimeMillis();
+                if ((now - this.cachePutTimeMillis) > CLASSPATH_CACHE_TIMEOUT_MS) {
+                    this.cachedEntries = null;
                 } else {
-                    BazelPluginActivator.debug("  Using cached classpath for project "+eclipseProjectName);
-                    return this.cachedEntries;
+                    foundCachedEntries = true;
+                    if (BazelEclipseProjectFactory.importInProgress.get()) {
+                        // classpath computation is iterative right now during import, each project's classpath is computed many times. 
+                        // earlier in the import process, project refs might be brought in as jars because the associated project
+                        //   may not have been imported yet. 
+                        // by not caching during import, the classpath is continually recomputed and eventually arrives in the right state
+                        BazelPluginActivator.debug("  Recomputing classpath for project "+eclipseProjectName+" because we are in an import operation.");
+                        isImport = true;
+                    } else {
+                        BazelPluginActivator.debug("  Using cached classpath for project "+eclipseProjectName);
+                        return this.cachedEntries;
+                    }
                 }
             }
-        }
-        
-        BazelPluginActivator.info("Computing classpath for project "+eclipseProjectName);
-
-        // TODO figure out a way to get access to an Eclipse progress monitor here
-        WorkProgressMonitor progressMonitor = new EclipseWorkProgressMonitor(null);
-
-        if (this.eclipseJavaProject.getElementName().startsWith("Bazel Workspace")) {
-            // this project is the artificial container to hold Bazel workspace scoped assets (e.g. the WORKSPACE file)
-            return new IClasspathEntry[] {};
-        }
-
-        List<IClasspathEntry> classpathEntries = new ArrayList<>();
-        Set<IPath> projectsAddedToClasspath = new HashSet<>();
-
-        BazelCommandManager commandFacade = BazelPluginActivator.getBazelCommandManager();
-        BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = commandFacade.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
-        
-        try {
-            IProject eclipseIProject = eclipseProject.getProject();
-            List<String> bazelTargetsForProject = BazelEclipseProjectSupport.getBazelTargetsForEclipseProject(eclipseIProject, false);
+    
+            // TODO figure out a way to get access to an Eclipse progress monitor here
+            WorkProgressMonitor progressMonitor = new EclipseWorkProgressMonitor(null);
+    
+            if (this.eclipseJavaProject.getElementName().startsWith(BazelNature.BAZELWORKSPACE_PROJECT_BASENAME)) {
+                // this project is the artificial container to hold Bazel workspace scoped assets (e.g. the WORKSPACE file)
+                return new IClasspathEntry[] {};
+            }
+    
+            BazelPluginActivator.info("Computing classpath for project "+eclipseProjectName+" (cached entries: "+foundCachedEntries+", is import: "+isImport+")");
+    
+            List<IClasspathEntry> classpathEntries = new ArrayList<>();
+            Set<IPath> projectsAddedToClasspath = new HashSet<>();
+    
+            BazelCommandManager commandFacade = BazelPluginActivator.getBazelCommandManager();
+            BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = commandFacade.getWorkspaceCommandRunner(BazelPluginActivator.getBazelWorkspaceRootDirectory());
             
-            Map<String, AspectPackageInfo> packageInfos = bazelWorkspaceCmdRunner.getAspectPackageInfos(
-                eclipseIProject.getName(), bazelTargetsForProject, progressMonitor, "getClasspathEntries");
-
-            for (AspectPackageInfo packageInfo : packageInfos.values()) {
-                IJavaProject otherProject = getSourceProjectForSourcePaths(bazelWorkspaceCmdRunner, packageInfo.getSources());
+            try {
+                IProject eclipseIProject = eclipseProject.getProject();
+                List<String> bazelTargetsForProject = BazelEclipseProjectSupport.getBazelTargetsForEclipseProject(eclipseIProject, false);
                 
-                if (otherProject == null) {
-                    // no project found that houses the sources of this bazel target, add the jars to the classpath
-                    // this means that this is an external jar, or a jar produced by a bazel target that was not imported
-                    for (AspectOutputJars jarSet : packageInfo.getGeneratedJars()) {
-                        IClasspathEntry cpEntry = jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet); 
-                        if (cpEntry != null) {
-                            classpathEntries.add(cpEntry);
-                        } else {
-                            // there was a problem with the aspect computation, this might resolve itself if we recompute it
-                            bazelWorkspaceCmdRunner.flushAspectInfoCache(bazelTargetsForProject);
-                        }
-                    }
-                    for (AspectOutputJars jarSet : packageInfo.getJars()) {
-                        IClasspathEntry cpEntry = jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet);
-                        if (cpEntry != null) {
-                            classpathEntries.add(cpEntry);
-                        } else {
-                            // there was a problem with the aspect computation, this might resolve itself if we recompute it
-                            bazelWorkspaceCmdRunner.flushAspectInfoCache(bazelTargetsForProject);
-                        }
-                    }
-                } else if (eclipseProject.getProject().getFullPath().equals(otherProject.getProject().getFullPath())) {
-                    // the project referenced is actually the the current project that this classpath container is for - nothing to do
-                } else {
-                    // add the referenced project to the classpath, directly as a project classpath entry
-                    IPath projectFullPath = otherProject.getProject().getFullPath();
-                    if (!projectsAddedToClasspath.contains(projectFullPath)) {
-                        classpathEntries.add(BazelPluginActivator.getJavaCoreHelper().newProjectEntry(projectFullPath));
-                    }
-                    projectsAddedToClasspath.add(projectFullPath);
+                Map<String, AspectPackageInfo> packageInfos = bazelWorkspaceCmdRunner.getAspectPackageInfos(
+                    eclipseIProject.getName(), bazelTargetsForProject, progressMonitor, "getClasspathEntries");
+    
+                for (AspectPackageInfo packageInfo : packageInfos.values()) {
+                    IJavaProject otherProject = getSourceProjectForSourcePaths(bazelWorkspaceCmdRunner, packageInfo.getSources());
                     
-                    // now make a project reference between this project and the other project; this allows for features like
-                    // code refactoring across projects to work correctly
-                    addProjectReference(eclipseIProject, otherProject.getProject());
+                    if (otherProject == null) {
+                        // no project found that houses the sources of this bazel target, add the jars to the classpath
+                        // this means that this is an external jar, or a jar produced by a bazel target that was not imported
+                        for (AspectOutputJars jarSet : packageInfo.getGeneratedJars()) {
+                            IClasspathEntry cpEntry = jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet); 
+                            if (cpEntry != null) {
+                                classpathEntries.add(cpEntry);
+                            } else {
+                                // there was a problem with the aspect computation, this might resolve itself if we recompute it
+                                bazelWorkspaceCmdRunner.flushAspectInfoCache(bazelTargetsForProject);
+                            }
+                        }
+                        for (AspectOutputJars jarSet : packageInfo.getJars()) {
+                            IClasspathEntry cpEntry = jarsToClasspathEntry(bazelWorkspaceCmdRunner, progressMonitor, jarSet);
+                            if (cpEntry != null) {
+                                classpathEntries.add(cpEntry);
+                            } else {
+                                // there was a problem with the aspect computation, this might resolve itself if we recompute it
+                                bazelWorkspaceCmdRunner.flushAspectInfoCache(bazelTargetsForProject);
+                            }
+                        }
+                    } else if (eclipseProject.getProject().getFullPath().equals(otherProject.getProject().getFullPath())) {
+                        // the project referenced is actually the the current project that this classpath container is for - nothing to do
+                    } else {
+                        // otherProject != null
+                        // add the referenced project to the classpath, directly as a project classpath entry
+                        IPath projectFullPath = otherProject.getProject().getFullPath();
+                        if (!projectsAddedToClasspath.contains(projectFullPath)) {
+                            classpathEntries.add(BazelPluginActivator.getJavaCoreHelper().newProjectEntry(projectFullPath));
+                        }
+                        projectsAddedToClasspath.add(projectFullPath);
+                        
+                        // now make a project reference between this project and the other project; this allows for features like
+                        // code refactoring across projects to work correctly
+                        addProjectReference(eclipseIProject, otherProject.getProject());
+                    }
                 }
+            } catch (IOException | InterruptedException e) {
+                BazelPluginActivator.error("Unable to compute classpath containers entries for project "+eclipseProjectName, e);
+                return new IClasspathEntry[] {};
+            } catch (BazelCommandLineToolConfigurationException e) {
+                BazelPluginActivator.error("Bazel not found: " + e.getMessage());
+                return new IClasspathEntry[] {};
             }
-        } catch (IOException | InterruptedException e) {
-            BazelPluginActivator.error("Unable to compute classpath containers entries for project "+eclipseProjectName, e);
-            return new IClasspathEntry[] {};
-        } catch (BazelCommandLineToolConfigurationException e) {
-            BazelPluginActivator.error("Bazel not found: " + e.getMessage());
-            return new IClasspathEntry[] {};
+    
+            // cache the entries
+            this.cachePutTimeMillis = System.currentTimeMillis();
+            this.cachedEntries = classpathEntries.toArray(new IClasspathEntry[] {});
+            BazelPluginActivator.debug("Cached the classpath for project "+eclipseProjectName);
         }
-
-        this.cachePutTimeMillis = System.currentTimeMillis();
-        this.cachedEntries = classpathEntries.toArray(new IClasspathEntry[] {}); 
         return cachedEntries;
     }
 
@@ -236,7 +253,7 @@ public class BazelClasspathContainer implements IClasspathContainer {
         BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner = bazelCommandManager.getWorkspaceCommandRunner(bazelWorkspaceRootDirectory);
         
         if (bazelWorkspaceCmdRunner != null) {
-            if (this.eclipseProject.getName().startsWith("Bazel Workspace")) {
+            if (this.eclipseProject.getName().startsWith(BazelNature.BAZELWORKSPACE_PROJECT_BASENAME)) {
                 return true;
             }
             List<String> targets =
@@ -361,12 +378,13 @@ public class BazelClasspathContainer implements IClasspathContainer {
         }
         Path path = Paths.get(bazelOutputBase.toString(), file);
 
-        // Eclipse does not seem to like symlinks, so resolve them before providing to Eclipse
+        // We have had issues with Eclipse complaining about symlinks in the Bazel output directories not being real,
+        // so we resolve them before handing them back to Eclipse.
         if (Files.isSymbolicLink(path)) {
             try {
                 path = Files.readSymbolicLink(path);
             } catch (IOException ex) {
-                BazelPluginActivator.error("Not adding jar to project ["+eclipseProjectName+"] it does not exist on the filesystem: "+path);
+                BazelPluginActivator.error("Not adding jar to project ["+eclipseProjectName+"] because it does not exist on the filesystem: "+path);
                 printDirectoryDiagnostics(path.toFile().getParentFile().getParentFile(), " ");
             }
         }

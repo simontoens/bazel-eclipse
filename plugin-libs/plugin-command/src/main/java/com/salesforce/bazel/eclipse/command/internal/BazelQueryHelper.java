@@ -33,11 +33,14 @@ public class BazelQueryHelper {
      */
     public synchronized List<String> listBazelTargetsInBuildFiles(File bazelWorkspaceRootDirectory, WorkProgressMonitor progressMonitor,
             File... directories) throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
-        StringBuilder builder = new StringBuilder();
+        ImmutableList.Builder<String> argBuilder = ImmutableList.builder();
+        argBuilder.add("query");
         for (File f : directories) {
-            builder.append(f.toURI().relativize(bazelWorkspaceRootDirectory.toURI()).getPath()).append("/... ");
+            String directoryPath = f.toURI().relativize(bazelWorkspaceRootDirectory.toURI()).getPath();
+            argBuilder.add(directoryPath+"/...");
         }
-        return bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "query", builder.toString());
+        return bazelCommandExecutor.runBazelAndGetOutputLines(bazelWorkspaceRootDirectory, progressMonitor, 
+            argBuilder.build(), (t) -> t);
     }
 
     
@@ -69,7 +72,7 @@ public class BazelQueryHelper {
                 return !s.isEmpty() && s.startsWith(targetPrefix) ? (packageName + ":" + s) : null;
             };
 
-            List<String> outputLines = this.bazelCommandExecutor.runBazelAndGetOuputLines(BazelCommandExecutor.ConsoleType.NO_CONSOLE,
+            List<String> outputLines = this.bazelCommandExecutor.runBazelAndGetOuputLines(ConsoleType.WORKSPACE,
                 bazelWorkspaceRootDirectory, progressMonitor, args, selector);
 
             ImmutableList.Builder<String> builder = ImmutableList.builder();

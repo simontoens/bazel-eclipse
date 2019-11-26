@@ -168,7 +168,7 @@ public class BazelWorkspaceAspectHelper {
         Function<String, String> filter = t -> t.startsWith(">>>")
                 ? (t.endsWith(AspectPackageInfo.ASPECT_FILENAME_SUFFIX) ? t.substring(3) : "") : null;
 
-        List<String> listOfGeneratedFilePaths = this.bazelCommandExecutor.runBazelAndGetErrorLines(BazelCommandExecutor.ConsoleType.WORKSPACE,
+        List<String> listOfGeneratedFilePaths = this.bazelCommandExecutor.runBazelAndGetErrorLines(ConsoleType.WORKSPACE,
             this.bazelWorkspaceCommandRunner.getBazelWorkspaceRootDirectory(), progressMonitor, args, filter);
 
         return listOfGeneratedFilePaths;

@@ -39,7 +39,6 @@ import com.salesforce.bazel.eclipse.abstractions.BazelAspectLocation;
 import com.salesforce.bazel.eclipse.abstractions.BazelCommandArgs;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsole;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
-import com.salesforce.bazel.eclipse.command.internal.BazelCommandExecutor;
 import com.salesforce.bazel.eclipse.command.shell.ShellCommandBuilder;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.TargetKind;
@@ -53,11 +52,11 @@ public class BazelCommandBuilderTest {
     @Test
     public void testBuildRunCommand() {
         BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        BazelCommandExecutor invoker = null;
+        CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_BINARY;
         BazelLauncherBuilder cmdBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, invoker, label, targetKind, Collections.emptyMap());
+                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap());
 
         List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
 
@@ -70,11 +69,11 @@ public class BazelCommandBuilderTest {
     @Test
     public void testBuildRunCommandWithDebug() {
         BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        BazelCommandExecutor invoker = null;
+        CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_BINARY;
         BazelLauncherBuilder cmdBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, invoker, label, targetKind, Collections.emptyMap())
+                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap())
                         .setDebugMode(true, "localhost", DEBUG_PORT);
 
         List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
@@ -89,11 +88,11 @@ public class BazelCommandBuilderTest {
     @Test
     public void testBuildTestCommand() {
         BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        BazelCommandExecutor invoker = null;
+        CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
         BazelLauncherBuilder cmdBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, invoker, label, targetKind, Collections.emptyMap());
+                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap());
 
         List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
 
@@ -106,12 +105,12 @@ public class BazelCommandBuilderTest {
     @Test
     public void testBuildTestCommandWithFilter() {
         BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        BazelCommandExecutor invoker = null;
+        CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
         Map<String, String> bazelArgs =
                 Collections.singletonMap(BazelCommandArgs.TEST_FILTER.getName(), "someBazelTestFilter");
-        BazelLauncherBuilder cmdBuilder = new BazelLauncherBuilder(bazelCommandRunner, invoker, label, targetKind, bazelArgs);
+        BazelLauncherBuilder cmdBuilder = new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, bazelArgs);
 
         List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
 
@@ -125,11 +124,11 @@ public class BazelCommandBuilderTest {
     @Test
     public void testBuildTestCommandWithDebugEnabled() {
         BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        BazelCommandExecutor invoker = null;
+        CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
         BazelLauncherBuilder cmdBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, invoker, label, targetKind, Collections.emptyMap())
+                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap())
                         .setDebugMode(true, "localhost", DEBUG_PORT);
 
         List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
@@ -165,4 +164,7 @@ public class BazelCommandBuilderTest {
         return new BazelWorkspaceCommandRunner(new File(BAZEL_EXECUTABLE), bazelAspectLocation, commandBuilder, commandConsoleFactory, new File(""));
     }
 
+    CommandBuilder getCommandBuilder() {
+        return null;
+    }
 }

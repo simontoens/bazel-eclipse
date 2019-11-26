@@ -23,6 +23,7 @@
  */
 package com.salesforce.bazel.eclipse.command;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,7 +33,7 @@ import java.util.Objects;
 
 import com.google.common.collect.ImmutableList;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
-import com.salesforce.bazel.eclipse.command.internal.BazelCommandExecutor;
+import com.salesforce.bazel.eclipse.command.internal.ConsoleType;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.TargetKind;
 
@@ -43,7 +44,7 @@ import com.salesforce.bazel.eclipse.model.TargetKind;
 public class BazelLauncherBuilder {
 
     private final BazelWorkspaceCommandRunner bazelCommandRunner;
-    private final BazelCommandExecutor bazelCommandExecutor;
+    private final CommandBuilder commandBuilder;
     
     private BazelLabel bazelLabel;
     private TargetKind targetKind;
@@ -56,15 +57,15 @@ public class BazelLauncherBuilder {
     // CTORS
     // Get instances via BazelWorkspaceCommandRunner.getBazelLauncherBuilder()
     
-    BazelLauncherBuilder(BazelWorkspaceCommandRunner bazelRunner, BazelCommandExecutor bazelCommandExecutor) {
+    BazelLauncherBuilder(BazelWorkspaceCommandRunner bazelRunner, CommandBuilder commandBuilder) {
         this.bazelCommandRunner = Objects.requireNonNull(bazelRunner);
-        this.bazelCommandExecutor = Objects.requireNonNull(bazelCommandExecutor);
+        this.commandBuilder = Objects.requireNonNull(commandBuilder);
     }
 
-    BazelLauncherBuilder(BazelWorkspaceCommandRunner bazelRunner, BazelCommandExecutor bazelCommandExecutor,
+    BazelLauncherBuilder(BazelWorkspaceCommandRunner bazelRunner, CommandBuilder commandBuilder,
         BazelLabel bazelLabel, TargetKind targetKind, Map<String, String> bazelArgs) {
         this.bazelCommandRunner = Objects.requireNonNull(bazelRunner);
-        this.bazelCommandExecutor = Objects.requireNonNull(bazelCommandExecutor);
+        this.commandBuilder = Objects.requireNonNull(commandBuilder);
         this.bazelLabel = Objects.requireNonNull(bazelLabel);
         this.targetKind = Objects.requireNonNull(targetKind);
         this.bazelArgs = Objects.requireNonNull(bazelArgs);
@@ -138,8 +139,17 @@ public class BazelLauncherBuilder {
                 .add("--").addAll(bazelTargets).build();
 
         WorkProgressMonitor progressMonitor = null;
-
-        return this.bazelCommandExecutor.buildBazelCommand(this.bazelCommandRunner.getBazelWorkspaceRootDirectory(), progressMonitor, args);
+        
+        File workspaceDirectory = this.bazelCommandRunner.getBazelWorkspaceRootDirectory();
+        String consoleName = ConsoleType.WORKSPACE.getConsoleName(workspaceDirectory);
+        
+        return commandBuilder
+                .setConsoleName(consoleName)
+                .setDirectory(workspaceDirectory)
+                .addArguments(BazelWorkspaceCommandRunner.getBazelExecutablePath())
+                .addArguments(args)
+                .setProgressMonitor(progressMonitor)
+                .build();
     }
 
     /**
@@ -159,8 +169,18 @@ public class BazelLauncherBuilder {
                 .add("--").addAll(bazelTargets).build();
 
         WorkProgressMonitor progressMonitor = null;
-
-        return this.bazelCommandExecutor.buildBazelCommand(this.bazelCommandRunner.getBazelWorkspaceRootDirectory(), progressMonitor, args);
+        
+        
+        File workspaceDirectory = this.bazelCommandRunner.getBazelWorkspaceRootDirectory();
+        String consoleName = ConsoleType.WORKSPACE.getConsoleName(workspaceDirectory);
+        
+        return commandBuilder
+                .setConsoleName(consoleName)
+                .setDirectory(workspaceDirectory)
+                .addArguments(BazelWorkspaceCommandRunner.getBazelExecutablePath())
+                .addArguments(args)
+                .setProgressMonitor(progressMonitor)
+                .build();
     }
     
 }

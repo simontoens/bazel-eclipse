@@ -94,7 +94,7 @@ public class BazelLaunchConfigurationTab extends AbstractLaunchConfigurationTab 
     public void initializeFrom(ILaunchConfiguration configuration) {
         try {
             String projectName = configuration.getAttribute(BazelLaunchConfigAttributes.PROJECT.getAttributeName(), (String)null);
-            if (projectName != null) {
+            if (projectName != null && getSelectedProject() != null) {
                 projectTextInput.setText(projectName);
                 initializeLabelsForSelectedProject(getSelectedProject().getProject());
             }

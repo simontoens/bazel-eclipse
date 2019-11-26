@@ -206,7 +206,11 @@ public class BazelWorkspaceCommandRunner {
 
         if (bazelExecRootDirectory == null) {
             try {
-                List<String> outputLines = bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "execution_root");
+                ImmutableList.Builder<String> argBuilder = ImmutableList.builder();
+                argBuilder.add("info").add("execution_root");
+                
+                List<String> outputLines = bazelCommandExecutor.runBazelAndGetOutputLines(bazelWorkspaceRootDirectory, progressMonitor, 
+                    argBuilder.build(), (t) -> t);
                 outputLines = BazelCommandExecutor.stripInfoLines(outputLines);
                 bazelExecRootDirectory = new File(String.join("", outputLines));
             } catch (Exception anyE) {
@@ -225,7 +229,11 @@ public class BazelWorkspaceCommandRunner {
     public File getBazelWorkspaceOutputBase(WorkProgressMonitor progressMonitor) {
         if (bazelOutputBaseDirectory == null) {
             try {
-                List<String> outputLines = bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "output_base");
+                ImmutableList.Builder<String> argBuilder = ImmutableList.builder();
+                argBuilder.add("info").add("output_base");
+                
+                List<String> outputLines = bazelCommandExecutor.runBazelAndGetOutputLines(bazelWorkspaceRootDirectory, progressMonitor, 
+                    argBuilder.build(), (t) -> t);
                 outputLines = BazelCommandExecutor.stripInfoLines(outputLines);
                 bazelOutputBaseDirectory = new File(String.join("", outputLines));
 
@@ -245,7 +253,11 @@ public class BazelWorkspaceCommandRunner {
     public File getBazelWorkspaceBin(WorkProgressMonitor progressMonitor) {
         if (bazelBinDirectory == null) {
             try {
-                List<String> outputLines = bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "info", "bazel-bin");
+                ImmutableList.Builder<String> argBuilder = ImmutableList.builder();
+                argBuilder.add("info").add("bazel-bin");
+                
+                List<String> outputLines = bazelCommandExecutor.runBazelAndGetOutputLines(bazelWorkspaceRootDirectory, progressMonitor, 
+                    argBuilder.build(), (t) -> t);
                 outputLines = BazelCommandExecutor.stripInfoLines(outputLines);
                 bazelBinDirectory = new File(String.join("", outputLines));
             } catch (Exception anyE) {
@@ -337,7 +349,7 @@ public class BazelWorkspaceCommandRunner {
                 .addAll(extraArgs).add("--").addAll(bazelTargets).build();
 
         List<String> output = this.bazelCommandExecutor.runBazelAndGetErrorLines(bazelWorkspaceRootDirectory, progressMonitor,
-            extraArgsList, bazelTargets, new ErrorOutputSelector());
+            extraArgsList, new ErrorOutputSelector());
         if (output.isEmpty()) {
             return Collections.emptyList();
         } else {
@@ -401,7 +413,7 @@ public class BazelWorkspaceCommandRunner {
      * For issuing custom launcher commands (e.g. 'bazel run', 'bazel test') 
      */
     public BazelLauncherBuilder getBazelLauncherBuilder() {
-        BazelLauncherBuilder launcherBuilder = new BazelLauncherBuilder(this, this.bazelCommandExecutor);
+        BazelLauncherBuilder launcherBuilder = new BazelLauncherBuilder(this, this.commandBuilder);
         
         return launcherBuilder;
     }
@@ -415,7 +427,11 @@ public class BazelWorkspaceCommandRunner {
      */
     public void runBazelClean(WorkProgressMonitor progressMonitor) {
         try {
-            bazelCommandExecutor.runBazelCommand(bazelWorkspaceRootDirectory, progressMonitor, "clean");
+            ImmutableList.Builder<String> argBuilder = ImmutableList.builder();
+            argBuilder.add("clean");
+
+            bazelCommandExecutor.runBazelAndGetOutputLines(bazelWorkspaceRootDirectory, progressMonitor, 
+                argBuilder.build(), (t) -> t);
         } catch (IOException | InterruptedException | BazelCommandLineToolConfigurationException e) {
             e.printStackTrace();
         }
