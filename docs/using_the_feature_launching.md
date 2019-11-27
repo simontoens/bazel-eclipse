@@ -35,8 +35,11 @@ because it does not run Bazel.
 
 Follow these steps:
 
-1. Navigate to *Run As...* and click on the *Bazel Target* option
-1. Alternatively, you can use the shortcuts to run/debug Bazel targets
+1. Navigate to *Run As...* and click the *New* button for *Bazel Target*
+1. Select the project, and then the test target from the drop down.
+1. You should now be able to run the test.
+
+Alternatively, you can use the shortcuts to run/debug Bazel targets
 For Mac:
 ```
 Bazel Target run: COMMAND+ALT+X, B
@@ -48,8 +51,7 @@ Bazel Target run: CTRL+ALT+X, B
 Bazel Target Debug: SHIFT+CTRL+ALT+D, B
 ```
 
-You should now be able to run the test.
 You can also debug it, with breakpoints, by launching as a *Debug Configuration*.
 
-:warning: Do not use the JUnit Launcher. If you have used Eclipse for a long time, you have the muscle memory to "Run as Junit Test" - this will not work
-because it does not run Bazel.
+:warning: Do not use the JUnit Launcher. If you have used Eclipse for a long time,
+you have the muscle memory to "Run as Junit Test" but this will not work because it does not run the test via Bazel.

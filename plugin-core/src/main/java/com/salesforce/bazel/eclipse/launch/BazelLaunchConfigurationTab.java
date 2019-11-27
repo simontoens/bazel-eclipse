@@ -79,6 +79,9 @@ public class BazelLaunchConfigurationTab extends AbstractLaunchConfigurationTab 
 
     private Text projectTextInput;
     private Text targetTextInput;
+    
+    private String loadedProjectName = "";
+    private String loadedTargetKind;
 
     private Collection<TypedBazelLabel> labelsForSelectedProject = null;
 
@@ -93,16 +96,16 @@ public class BazelLaunchConfigurationTab extends AbstractLaunchConfigurationTab 
     @Override
     public void initializeFrom(ILaunchConfiguration configuration) {
         try {
-            String projectName = configuration.getAttribute(BazelLaunchConfigAttributes.PROJECT.getAttributeName(), (String)null);
-            if (projectName != null && getSelectedProject() != null) {
-                projectTextInput.setText(projectName);
+            loadedProjectName = configuration.getAttribute(BazelLaunchConfigAttributes.PROJECT.getAttributeName(), "");
+            if (!loadedProjectName.isEmpty() && getSelectedProject() != null) {
+                projectTextInput.setText(loadedProjectName);
                 initializeLabelsForSelectedProject(getSelectedProject().getProject());
             }
             String targetName = configuration.getAttribute(BazelLaunchConfigAttributes.LABEL.getAttributeName(), (String)null);
             if (targetName != null) {
                 targetTextInput.setText(targetName);
-                    
             }
+            loadedTargetKind = configuration.getAttribute(BazelLaunchConfigAttributes.TARGET_KIND.getAttributeName(), (String)null);
         } catch (CoreException ex) {
             throw new IllegalStateException(ex);
         }
@@ -110,9 +113,22 @@ public class BazelLaunchConfigurationTab extends AbstractLaunchConfigurationTab 
 
     @Override
     public void performApply(ILaunchConfigurationWorkingCopy configuration) {
+        String projectName = projectTextInput.getText();
+        if (projectName == null || projectName.isEmpty()) {
+            // there is a weird state issue sometimes where the project name in the text field gets lost
+            if (!loadedProjectName.isEmpty()) {
+                projectName = loadedProjectName;
+                projectTextInput.setText(projectName);
+            }
+        }
+        
         BazelLabel label = targetTextInput.getText().trim().isEmpty() ? null : new BazelLabel(targetTextInput.getText());
         TargetKind targetKind = label == null ? null : lookupLabelKind(label);
-        support.populateBazelLaunchConfig(configuration, projectTextInput.getText(), label, targetKind);        
+        if (targetKind == null && loadedTargetKind != null) {
+            targetKind = TargetKind.valueOfIgnoresCase(loadedTargetKind);
+        }
+        
+        support.populateBazelLaunchConfig(configuration, projectName, label, targetKind);
     }
 
     @Override
@@ -245,9 +261,11 @@ public class BazelLaunchConfigurationTab extends AbstractLaunchConfigurationTab 
     }
 
     private TargetKind lookupLabelKind(BazelLabel label) {
-        for (TypedBazelLabel typedBazelLabel : labelsForSelectedProject) {
-            if (typedBazelLabel.getBazelLabel().equals(label)) {
-                return typedBazelLabel.getTargetKind();
+        if (labelsForSelectedProject != null) {
+            for (TypedBazelLabel typedBazelLabel : labelsForSelectedProject) {
+                if (typedBazelLabel.getBazelLabel().equals(label)) {
+                    return typedBazelLabel.getTargetKind();
+                }
             }
         }
         return null;

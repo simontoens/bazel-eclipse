@@ -155,10 +155,14 @@ class BazelLaunchConfigurationSupport {
     void populateBazelLaunchConfig(ILaunchConfigurationWorkingCopy config, String projectName, BazelLabel label, TargetKind targetKind) {
         Objects.requireNonNull(config);
         Objects.requireNonNull(projectName);
+        
+        String labelStr = label == null ? null : label.getLabel();
+        String kindStr = targetKind == null ? null : targetKind.getKind();
+        //System.out.println("Applying launch config with: p: "+projectName+" l:"+labelStr+" k: "+kindStr);
+
         config.setAttribute(BazelLaunchConfigAttributes.PROJECT.getAttributeName(), projectName);
-        config.setAttribute(BazelLaunchConfigAttributes.LABEL.getAttributeName(), label == null ? null : label.getLabel());
-        config.setAttribute(BazelLaunchConfigAttributes.TARGET_KIND.getAttributeName(),
-            targetKind == null ? null : targetKind.getKind());
+        config.setAttribute(BazelLaunchConfigAttributes.LABEL.getAttributeName(), labelStr);
+        config.setAttribute(BazelLaunchConfigAttributes.TARGET_KIND.getAttributeName(), kindStr);
     }
 
 

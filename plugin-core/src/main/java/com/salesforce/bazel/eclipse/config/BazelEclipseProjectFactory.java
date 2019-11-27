@@ -343,7 +343,7 @@ public class BazelEclipseProjectFactory {
 
             IPath outputDir = null; // null is a legal value, it means use the default
             boolean isTestSource = false; 
-            if (path.endsWith("src/test/java")) {
+            if (path.endsWith("src/test/java")) { // NON_CONFORMING PROJECT SUPPORT
                 isTestSource = true;
                 outputDir = new Path(eclipseProject.getPath().toOSString() + "/testbin");
             }
@@ -478,7 +478,7 @@ public class BazelEclipseProjectFactory {
         // add this node buildable target
         String bazelPackageRootDirectory = packageNode.getWorkspaceRootDirectory().getAbsolutePath();
 
-        // TODO here is where we assume that the Java project is Conforming
+        // TODO here is where we assume that the Java project is conforming  NON_CONFORMING PROJECT SUPPORT
         // https://git.soma.salesforce.com/services/bazel-eclipse/blob/master/docs/conforming_java_packages.md
         String mainSrcRelPath = packageNode.getBazelPackageFSRelativePath() + File.separator + "src" + File.separator
                 + "main" + File.separator + "java";
