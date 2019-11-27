@@ -397,6 +397,13 @@ public class BazelWorkspaceCommandRunner {
         this.aspectHelper.flushAspectInfoCache(targets);
     }
     
+    /**
+     * Access to the low level aspect collaborator. Visible for tests.
+     */
+    public BazelWorkspaceAspectHelper getBazelWorkspaceAspectHelper() {
+        return this.aspectHelper;
+    }
+    
     
     // CUSTOM OPERATIONS
     

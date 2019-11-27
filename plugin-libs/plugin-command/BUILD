@@ -116,6 +116,24 @@ java_test(
 )
 
 java_test(
+    name = "BazelWorkspaceAspectHelperTest",
+    srcs = [
+       "src/test/java/com/salesforce/bazel/eclipse/command/internal/BazelWorkspaceAspectHelperTest.java",
+    ],
+    deps = [
+        ":plugin-command",
+        ":plugin-command-test-mocks",
+        "//plugin-libs/plugin-abstractions",
+        "//plugin-libs/plugin-model",
+        "//plugin-libs/plugin-testdeps",
+
+        "//plugin-libs/plugin-testdeps:org_hamcrest_core",
+        "//plugin-libs/plugin-testdeps:org_junit_junit",
+        "//plugin-libs/plugin-testdeps:com_google_truth",
+    ],
+)
+
+java_test(
     name = "BazelCommandExecutorTest",
     srcs = [
        "src/test/java/com/salesforce/bazel/eclipse/command/internal/BazelCommandExecutorTest.java",

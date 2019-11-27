@@ -30,7 +30,7 @@ public class BazelCommandExecutorTest {
         
         List<String> args = new ArrayList<>();
         args.add("build");
-        args.add("//projects/lib/javalib0");
+        args.add("//projects/libs/javalib0");
         
         BazelCommandExecutor executor = new BazelCommandExecutor(env.bazelExecutable.bazelExecutableFile, env.commandBuilder);
         List<String> result = executor.runBazelAndGetOutputLines(env.bazelWorkspaceCommandRunner.getBazelWorkspaceRootDirectory(), 
@@ -53,7 +53,7 @@ public class BazelCommandExecutorTest {
         
         List<String> args = new ArrayList<>();
         args.add("build");
-        args.add("//projects/lib/javalib0");
+        args.add("//projects/libs/javalib0");
         
         BazelCommandExecutor executor = new BazelCommandExecutor(env.bazelExecutable.bazelExecutableFile, env.commandBuilder);
         List<String> result = executor.runBazelAndGetErrorLines(env.bazelWorkspaceCommandRunner.getBazelWorkspaceRootDirectory(), 
@@ -79,13 +79,16 @@ public class BazelCommandExecutorTest {
         assertEquals("result line 4", result.get(2));
     }
     
+    
+    // INTERNAL
+    
     private TestBazelCommandEnvironmentFactory createEnv() throws Exception {
         File testDir = tmpFolder.newFolder();
         File workspaceDir = new File(testDir, "bazel-workspace");
         workspaceDir.mkdirs();
         File outputbaseDir = new File(testDir, "outputbase");
         outputbaseDir.mkdirs();
-        TestBazelWorkspaceFactory workspace = new TestBazelWorkspaceFactory(workspaceDir, outputbaseDir).javaPackages(3).build();
+        TestBazelWorkspaceFactory workspace = new TestBazelWorkspaceFactory(workspaceDir, outputbaseDir).javaPackages(1).build();
         TestBazelCommandEnvironmentFactory env = new TestBazelCommandEnvironmentFactory();
         env.createTestEnvironment(workspace, testDir);
         

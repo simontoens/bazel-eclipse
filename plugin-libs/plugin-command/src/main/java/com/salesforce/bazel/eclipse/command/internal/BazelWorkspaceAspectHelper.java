@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.bazel.eclipse.abstractions.BazelAspectLocation;
@@ -37,21 +38,32 @@ public class BazelWorkspaceAspectHelper {
      * Cache of the Aspect data for each target. key=String target (//a/b/c) value=AspectPackageInfo data that came from
      * running the aspect. This cache is cleared often (currently, every build, but that is too often)
      */
-    private final Map<String, AspectPackageInfo> aspectInfoCache_current = new HashMap<>();
+    @VisibleForTesting
+    final Map<String, AspectPackageInfo> aspectInfoCache_current = new HashMap<>();
 
     /**
      * For wildcard targets //a/b/c:* we need to capture the resulting aspects that come from evaluation
      * so that the underlying list of aspects can be rebuilt from cache
      */
-    private final Map<String, Set<String>> aspectInfoCache_wildcards = new HashMap<>();
+    @VisibleForTesting
+    final Map<String, Set<String>> aspectInfoCache_wildcards = new HashMap<>();
 
     /**
      * Cache of the Aspect data for each target. key=String target (//a/b/c) value=AspectPackageInfo data that came from
      * running the aspect. This cache is never cleared and is used for cases in which the developer introduces a compile
      * error into the package, such that the Aspect will fail to run.
      */
-    private final Map<String, AspectPackageInfo> aspectInfoCache_lastgood = new HashMap<>();
+    @VisibleForTesting
+    final Map<String, AspectPackageInfo> aspectInfoCache_lastgood = new HashMap<>();
 
+    /**
+     * Tracks the number of cache hits for getAspectPackageInfos() invocations.
+     */
+    @VisibleForTesting
+    int numberCacheHits = 0;
+    
+    
+    // CTORS
     
     public BazelWorkspaceAspectHelper(BazelWorkspaceCommandRunner bazelWorkspaceCommandRunner, BazelAspectLocation aspectLocation,
             BazelCommandExecutor bazelCommandExecutor) {
@@ -111,6 +123,29 @@ public class BazelWorkspaceAspectHelper {
         return resultMap;
     }
     
+    /**
+     * Clear the entire AspectPackageInfo cache. This flushes the dependency graph for the workspace.
+     */
+    public synchronized void flushAspectInfoCache() {
+        this.aspectInfoCache_current.clear();
+        this.aspectInfoCache_wildcards.clear();
+    }
+
+    /**
+     * Clear the AspectPackageInfo cache for the passed targets. This flushes the dependency graph for those targets.
+     */
+    public synchronized void flushAspectInfoCache(List<String> targets) {
+        for (String target : targets) {
+            // the target may not even be in cache, that is ok, just try to remove it from both current and wildcard caches
+            // if the target exists in either it will get flushed
+            this.aspectInfoCache_current.remove(target);
+            this.aspectInfoCache_wildcards.remove(target);
+        }
+    }
+
+
+    // INTERNALS
+    
     private void getAspectPackageInfoForTarget(String target, String eclipseProjectName,
             WorkProgressMonitor progressMonitor, String caller,
             Map<String, AspectPackageInfo> resultMap)
@@ -121,6 +156,7 @@ public class BazelWorkspaceAspectHelper {
         if (aspectInfo != null) {
             LOG.info("ASPECT CACHE HIT target: {}", target + logstr);
             resultMap.put(target, aspectInfo);
+            this.numberCacheHits++;
         } else {
             LOG.info("ASPECT CACHE MISS target: {}", target + logstr);
             List<String> lookupTargets = new ArrayList<>();
@@ -157,8 +193,7 @@ public class BazelWorkspaceAspectHelper {
      *
      * @throws BazelCommandLineToolConfigurationException
      */
-    private synchronized List<String> generateAspectPackageInfoFiles(Collection<String> targets,
-            WorkProgressMonitor progressMonitor)
+    private synchronized List<String> generateAspectPackageInfoFiles(Collection<String> targets, WorkProgressMonitor progressMonitor)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
 
         List<String> args = ImmutableList.<String> builder().add("build").addAll(this.aspectOptions).addAll(targets).build();
@@ -172,22 +207,6 @@ public class BazelWorkspaceAspectHelper {
             this.bazelWorkspaceCommandRunner.getBazelWorkspaceRootDirectory(), progressMonitor, args, filter);
 
         return listOfGeneratedFilePaths;
-    }
-
-    /**
-     * Clear the entire AspectPackageInfo cache. This flushes the dependency graph for the workspace.
-     */
-    public synchronized void flushAspectInfoCache() {
-        aspectInfoCache_current.clear();
-    }
-
-    /**
-     * Clear the AspectPackageInfo cache for the passed targets. This flushes the dependency graph for those targets.
-     */
-    public synchronized void flushAspectInfoCache(List<String> targets) {
-        for (String target : targets) {
-            aspectInfoCache_current.remove(target);
-        }
     }
 
 }

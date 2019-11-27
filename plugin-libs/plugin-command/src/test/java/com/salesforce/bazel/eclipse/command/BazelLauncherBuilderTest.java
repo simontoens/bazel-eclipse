@@ -181,6 +181,8 @@ public class BazelLauncherBuilderTest {
         List<String> outputLines = new ArrayList<>();
         outputLines.add(resultLine);
         List<String> errorLines = new ArrayList<>();
+        
+        // create a matcher such that the resultLine is only returned if a command uses the specific verb
         List<MockCommandSimulatedOutputMatcher> matchers = new ArrayList<>();
         matchers.add(new MockCommandSimulatedOutputMatcher(0, verb));
         
