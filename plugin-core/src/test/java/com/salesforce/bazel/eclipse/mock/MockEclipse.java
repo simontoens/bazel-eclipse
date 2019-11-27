@@ -58,26 +58,10 @@ public class MockEclipse {
      * for convenience methods for setting up a Bazel workspace, MockEclipse, and then import of the Bazel packages. 
      */
     public MockEclipse(File testTempDir) throws Exception {
-        this.bazelWorkspaceRoot = new File(testTempDir, BAZEL_WORKSPACE_NAME);
-        this.bazelWorkspaceRoot.mkdir();
-        this.bazelOutputBase = new File(testTempDir, "bazel-output-base");
-        this.bazelOutputBase.mkdir();
-        File execroot_parent = new File(bazelOutputBase, "execroot");
-        execroot_parent.mkdir();
-        this.bazelExecutionRoot = new File(execroot_parent, "mock_workspace");
-        this.bazelExecutionRoot.mkdir();
-        File bazelbin_parent = new File(this.bazelExecutionRoot, "bazel-out");
-        bazelbin_parent.mkdir();
-        File bazelbin_os_parent = new File(bazelbin_parent, "darwin-fastbuild"); // eventually want to mock other platforms here
-        bazelbin_os_parent.mkdir();
-        this.bazelBin = new File(bazelbin_os_parent, "bin");
-        this.bazelBin.mkdir();
-        
-        // now create the simulation layer that emulates Bazel commands executed against this simple workspace
         this.bazelCommandEnvironment = new TestBazelCommandEnvironmentFactory();
         this.bazelCommandEnvironment.createTestEnvironment(testTempDir);
         
-        setup(testTempDir);
+        setup(this.bazelCommandEnvironment.testWorkspace, testTempDir);
     }
     
     /**
@@ -90,22 +74,19 @@ public class MockEclipse {
      * for convenience methods for setting up a Bazel workspace, MockEclipse, and then import of the Bazel packages. 
      */
     public MockEclipse(TestBazelWorkspaceFactory bazelWorkspace, File testTempDir) throws Exception {
+        this.bazelCommandEnvironment = new TestBazelCommandEnvironmentFactory();
+        this.bazelCommandEnvironment.createTestEnvironment(bazelWorkspace, testTempDir);
+        
+        setup(bazelWorkspace, testTempDir);
+    }
+    
+    private void setup(TestBazelWorkspaceFactory bazelWorkspace, File testTempDir) throws Exception {
         this.bazelWorkspaceFactory = bazelWorkspace;
         this.bazelWorkspaceRoot = bazelWorkspace.dirWorkspaceRoot;
         this.bazelOutputBase = bazelWorkspace.dirOutputBase;
         this.bazelExecutionRoot = bazelWorkspace.dirExecRoot;
         this.bazelBin = bazelWorkspace.dirBazelBin;
-        
-        this.bazelCommandEnvironment = new TestBazelCommandEnvironmentFactory();
-        this.bazelCommandEnvironment.createTestEnvironment(bazelWorkspace, testTempDir);
-        
-        setup(testTempDir);
-    }
-    
-    /**
-     * Shared setup method used by the multiple ctors.
-     */
-    private void setup(File testTempDir) throws Exception {
+
         this.eclipseWorkspaceRoot = new File(testTempDir, "eclipse-workspace");
         this.eclipseWorkspaceRoot.mkdir();
         

@@ -401,16 +401,17 @@ public class BazelWorkspaceCommandRunner {
     // CUSTOM OPERATIONS
     
     /**
-     * For issuing custom commands that are not supported in the specific APIs in this class, you can use the 
-     * CommandBuilder to build any command you need. For 'run' or 'test' commands, consider using the special purpose
-     * BazelLauncherBuilder instead.
+     * Returns a builder for issuing custom commands that are not covered in the convenience APIs in this class. 
+     * You can use the CommandBuilder to build any command you need. For 'run' or 'test' commands, consider using 
+     * the special purpose BazelLauncherBuilder instead.
      */
     public CommandBuilder getBazelCommandBuilder() {
         return this.commandBuilder;
     }
     
     /**
-     * For issuing custom launcher commands (e.g. 'bazel run', 'bazel test') 
+     * Returns a builder for issuing custom launcher commands (e.g. 'bazel run', 'bazel test'). The builder
+     * comes pre-wired into other collaborators. 
      */
     public BazelLauncherBuilder getBazelLauncherBuilder() {
         BazelLauncherBuilder launcherBuilder = new BazelLauncherBuilder(this, this.commandBuilder);

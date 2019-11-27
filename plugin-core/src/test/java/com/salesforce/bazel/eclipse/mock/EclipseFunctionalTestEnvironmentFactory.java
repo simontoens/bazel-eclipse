@@ -67,15 +67,12 @@ public class EclipseFunctionalTestEnvironmentFactory {
         List<BazelPackageInfo> bazelPackagesToImport = new ArrayList<>();
         bazelPackagesToImport.add(workspaceRootProject);
         addBazelPackageInfosToSelectedList(workspaceRootProject, bazelPackagesToImport);
-        
-        // when the workspace creator built out the Bazel workspace file system, it wrote a collection of aspect json files
-        // we need to tell the MockCommandBuilder where they are, since it will need to return them in command results
-        mockEclipse.getMockCommandBuilder().addAspectJsonFileResponses(mockEclipse.getBazelWorkspaceCreator().aspectFileSets);
-        
+                
         // run the import process (this is actually done in BazelImportWizard.performFinish() when a user is running the show)
         List<IProject> importedProjectsList = BazelEclipseProjectFactory.importWorkspace(workspaceRootProject, bazelPackagesToImport, new EclipseWorkProgressMonitor(), null);
         mockEclipse.setImportedProjectsList(importedProjectsList);
         
+        // do you want to simulate Eclipse calling getClasspath on the classpath container for each project?
         if (computeClasspaths) {
             for (IProject project : importedProjectsList) {
                 JavaCoreHelper javaHelper = mockEclipse.getJavaCoreHelper();

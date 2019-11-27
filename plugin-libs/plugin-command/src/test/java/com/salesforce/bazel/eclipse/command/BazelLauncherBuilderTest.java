@@ -28,7 +28,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,52 +37,57 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.salesforce.bazel.eclipse.abstractions.BazelAspectLocation;
 import com.salesforce.bazel.eclipse.abstractions.BazelCommandArgs;
-import com.salesforce.bazel.eclipse.abstractions.CommandConsole;
-import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
-import com.salesforce.bazel.eclipse.command.mock.MockBazelExecutable;
-import com.salesforce.bazel.eclipse.command.shell.ShellCommandBuilder;
+import com.salesforce.bazel.eclipse.command.mock.MockCommandBuilder.MockCommandSimulatedOutputMatcher;
+import com.salesforce.bazel.eclipse.command.mock.TestBazelCommandEnvironmentFactory;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.TargetKind;
+import com.salesforce.bazel.eclipse.test.TestBazelWorkspaceFactory;
 
 public class BazelLauncherBuilderTest {
     @Rule
     public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-    MockBazelExecutable mockBazelExecutable;
     private static final int DEBUG_PORT = 1234;
 
     @Test
-    public void testBuildRunCommand() {
-        BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        CommandBuilder commandBuilder = getCommandBuilder();
+    public void testBuildRunCommand() throws Exception {
+        TestBazelCommandEnvironmentFactory env = createEnv();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_BINARY;
-        BazelLauncherBuilder launcherBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap());
-
+        
+        BazelLauncherBuilder launcherBuilder = env.bazelWorkspaceCommandRunner.getBazelLauncherBuilder();
+        launcherBuilder.setLabel(label);
+        launcherBuilder.setTargetKind(targetKind);
+        launcherBuilder.setArgs(Collections.emptyMap());
+        
+        addBazelCommandOutput(env, "run", "bazel run result");
+        
         List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
+        assertEquals(env.bazelExecutable.getAbsolutePath(), cmdTokens.get(0));
         assertEquals("run", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertFalse(cmdTokens.contains("debug"));
     }
 
     @Test
-    public void testBuildRunCommandWithDebug() {
-        BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        CommandBuilder commandBuilder = getCommandBuilder();
+    public void testBuildRunCommandWithDebug() throws Exception {
+        TestBazelCommandEnvironmentFactory env = createEnv();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_BINARY;
-        BazelLauncherBuilder launcherBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap())
-                        .setDebugMode(true, "localhost", DEBUG_PORT);
+        
+        BazelLauncherBuilder launcherBuilder = env.bazelWorkspaceCommandRunner.getBazelLauncherBuilder();
+        launcherBuilder.setLabel(label);
+        launcherBuilder.setTargetKind(targetKind);
+        launcherBuilder.setArgs(Collections.emptyMap());
+        launcherBuilder.setDebugMode(true, "localhost", DEBUG_PORT);
+
+        addBazelCommandOutput(env, "run", "bazel run result");
 
         List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
+        assertEquals(env.bazelExecutable.getAbsolutePath(), cmdTokens.get(0));
         assertEquals("run", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertTrue(cmdTokens.toString().contains(
@@ -90,35 +95,44 @@ public class BazelLauncherBuilderTest {
     }
 
     @Test
-    public void testBuildTestCommand() {
-        BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        CommandBuilder commandBuilder = getCommandBuilder();
+    public void testBuildTestCommand() throws Exception {
+        TestBazelCommandEnvironmentFactory env = createEnv();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
-        BazelLauncherBuilder launcherBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap());
+        
+        BazelLauncherBuilder launcherBuilder = env.bazelWorkspaceCommandRunner.getBazelLauncherBuilder();
+        launcherBuilder.setLabel(label);
+        launcherBuilder.setTargetKind(targetKind);
+        launcherBuilder.setArgs(Collections.emptyMap());
 
+        addBazelCommandOutput(env, "test", "bazel test result");
+        
         List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
+        assertEquals(env.bazelExecutable.getAbsolutePath(), cmdTokens.get(0));
         assertEquals("test", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertFalse(cmdTokens.toString().contains("debug"));
     }
 
     @Test
-    public void testBuildTestCommandWithFilter() {
-        BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        CommandBuilder commandBuilder = getCommandBuilder();
+    public void testBuildTestCommandWithFilter() throws Exception {
+        TestBazelCommandEnvironmentFactory env = createEnv();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
         Map<String, String> bazelArgs =
                 Collections.singletonMap(BazelCommandArgs.TEST_FILTER.getName(), "someBazelTestFilter");
-        BazelLauncherBuilder launcherBuilder = new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, bazelArgs);
+
+        BazelLauncherBuilder launcherBuilder = env.bazelWorkspaceCommandRunner.getBazelLauncherBuilder();
+        launcherBuilder.setLabel(label);
+        launcherBuilder.setTargetKind(targetKind);
+        launcherBuilder.setArgs(bazelArgs);
+        
+        addBazelCommandOutput(env, "test", "bazel test result");
 
         List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
+        assertEquals(env.bazelExecutable.getAbsolutePath(), cmdTokens.get(0));
         assertEquals("test", cmdTokens.get(1));
         assertTrue(cmdTokens.contains("--test_filter=someBazelTestFilter"));
         assertTrue(cmdTokens.contains(label.getLabel()));
@@ -126,61 +140,51 @@ public class BazelLauncherBuilderTest {
     }
 
     @Test
-    public void testBuildTestCommandWithDebugEnabled() {
-        BazelWorkspaceCommandRunner bazelCommandRunner = getBazelCommandRunner();
-        CommandBuilder commandBuilder = getCommandBuilder();
+    public void testBuildTestCommandWithDebugEnabled() throws Exception {
+        TestBazelCommandEnvironmentFactory env = createEnv();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
-        BazelLauncherBuilder launcherBuilder =
-                new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap())
-                        .setDebugMode(true, "localhost", DEBUG_PORT);
+        
+        BazelLauncherBuilder launcherBuilder = env.bazelWorkspaceCommandRunner.getBazelLauncherBuilder();
+        launcherBuilder.setLabel(label);
+        launcherBuilder.setTargetKind(targetKind);
+        launcherBuilder.setArgs(Collections.emptyMap());
+        launcherBuilder.setDebugMode(true, "localhost", DEBUG_PORT);
+        
+        addBazelCommandOutput(env, "test", "bazel test result");
 
         List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
+        assertEquals(env.bazelExecutable.getAbsolutePath(), cmdTokens.get(0));
         assertEquals("test", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertTrue(cmdTokens.toString().contains("debug"));
         assertTrue(cmdTokens.contains("--test_arg=--wrapper_script_flag=--debug=localhost:" + DEBUG_PORT));
     }
+    
+    // INTERNALS
 
-    BazelWorkspaceCommandRunner getBazelCommandRunner() {
-        BazelAspectLocation bazelAspectLocation = new BazelAspectLocation() {
-            @Override
-            public String getAspectLabel() {
-                return null;
-            }
-
-            @Override
-            public File getAspectDirectory() {
-                return null;
-            }
-        };
-        CommandConsoleFactory commandConsoleFactory = new CommandConsoleFactory() {
-            @Override
-            public CommandConsole get(String name, String title) throws IOException {
-                return null;
-            }
-        };
+    private TestBazelCommandEnvironmentFactory createEnv() throws Exception {
+        File testDir = tmpFolder.newFolder();
+        File workspaceDir = new File(testDir, "bazel-workspace");
+        workspaceDir.mkdirs();
+        File outputbaseDir = new File(testDir, "outputbase");
+        outputbaseDir.mkdirs();
+        TestBazelWorkspaceFactory workspace = new TestBazelWorkspaceFactory(workspaceDir, outputbaseDir).javaPackages(3).build();
+        TestBazelCommandEnvironmentFactory env = new TestBazelCommandEnvironmentFactory();
+        env.createTestEnvironment(workspace, testDir);
         
-        MockBazelExecutable mockBazelExecutable = null;
-        try {
-            mockBazelExecutable = new MockBazelExecutable(tmpFolder.newFolder());
-        } catch (Exception anyE) {
-            throw new RuntimeException(anyE);
-        }
+        return env;
+    }
+    
+    private void addBazelCommandOutput(TestBazelCommandEnvironmentFactory env, String verb, String resultLine) {
+        List<String> outputLines = new ArrayList<>();
+        outputLines.add(resultLine);
+        List<String> errorLines = new ArrayList<>();
+        List<MockCommandSimulatedOutputMatcher> matchers = new ArrayList<>();
+        matchers.add(new MockCommandSimulatedOutputMatcher(0, verb));
         
-        CommandBuilder commandBuilder = new ShellCommandBuilder(commandConsoleFactory);
-        
-        BazelCommandManager bazelCommandManager = new BazelCommandManager(bazelAspectLocation, commandBuilder, commandConsoleFactory, 
-            mockBazelExecutable.bazelExecutableFile);
-        bazelCommandManager.setBazelExecutablePath(mockBazelExecutable.bazelExecutableFile.getAbsolutePath());
-        
-        return new BazelWorkspaceCommandRunner(mockBazelExecutable.bazelExecutableFile, bazelAspectLocation, commandBuilder, 
-            commandConsoleFactory, new File(""));
+        env.commandBuilder.addSimulatedOutput("launcherbuildertest", outputLines, errorLines, matchers);
     }
 
-    CommandBuilder getCommandBuilder() {
-        return null;
-    }
 }

@@ -62,12 +62,22 @@ public class BazelVersionChecker {
                 throw new BazelCommandLineToolConfigurationException.BazelNotExecutableException(
                     bazelExecutable.getAbsolutePath());
             }
-            List<String> result = command.getSelectedOutputLines();
-            if (result.size() != 1) {
+            List<String> resultLines = command.getSelectedOutputLines();
+            if (resultLines.size() == 0) {
                 throw new BazelCommandLineToolConfigurationException.BazelTooOldException("unknown",
                     bazelExecutable.getAbsolutePath());
             }
-            String version = result.get(0);
+            String version = null;
+            for (String resultLine : resultLines) {
+                if (resultLine.startsWith("Build label")) {
+                    version = resultLine.substring(13);
+                    break;
+                }
+            }
+            if (version == null) {
+                throw new BazelCommandLineToolConfigurationException.BazelTooOldException("unknown",
+                    bazelExecutable.getAbsolutePath());
+            }
             Matcher versionMatcher = VERSION_PATTERN.matcher(version);
             if (versionMatcher == null || !versionMatcher.matches()) {
                 throw new BazelCommandLineToolConfigurationException.BazelTooOldException(version,

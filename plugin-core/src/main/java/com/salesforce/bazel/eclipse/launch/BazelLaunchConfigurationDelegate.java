@@ -57,6 +57,7 @@ import org.eclipse.jdt.launching.JavaRuntime;
 
 import com.google.common.collect.ImmutableMap;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
+import com.salesforce.bazel.eclipse.command.BazelProcessBuilder;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.command.Command;
 import com.salesforce.bazel.eclipse.launch.BazelLaunchConfigurationSupport.BazelLaunchConfigAttributes;
@@ -96,7 +97,7 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
 
         Command cmd = bazelCommandRunner.getBazelLauncherBuilder().setLabel(label).setTargetKind(targetKind).setArgs(bazelArgs)
                 .setDebugMode(isDebugMode, DEBUG_HOST, DEBUG_PORT).build();
-        ProcessBuilder processBuilder = cmd.getProcessBuilder();
+        BazelProcessBuilder processBuilder = cmd.getProcessBuilder();
 
         List<String> commandTokens = processBuilder.command();
         LOG.info("Launching Bazel: " + String.join(" ", commandTokens));
@@ -111,7 +112,7 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
     }
 
     protected void launchExec(ILaunchConfiguration configuration, IProject project, List<String> commandTokens,
-            ProcessBuilder processBuilder, ILaunch launch, IProgressMonitor monitor) throws CoreException {
+            BazelProcessBuilder processBuilder, ILaunch launch, IProgressMonitor monitor) throws CoreException {
         Process process =
                 DebugPlugin.exec(commandTokens.toArray(new String[commandTokens.size()]), processBuilder.directory());
         IProcess debugProcess = DebugPlugin.newProcess(launch, process, "Bazel Runner");

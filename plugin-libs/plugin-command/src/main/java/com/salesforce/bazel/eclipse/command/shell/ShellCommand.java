@@ -47,6 +47,7 @@ import com.google.common.collect.ImmutableList;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsole;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
+import com.salesforce.bazel.eclipse.command.BazelProcessBuilder;
 import com.salesforce.bazel.eclipse.command.Command;
 import com.salesforce.bazel.eclipse.command.CommandBuilder;
 
@@ -89,8 +90,8 @@ public final class ShellCommand implements Command {
     /**
      * Returns a ProcessBuilder configured to run this Command instance.
      */
-    public ProcessBuilder getProcessBuilder() {
-        ProcessBuilder builder = new ProcessBuilder(args);
+    public BazelProcessBuilder getProcessBuilder() {
+        BazelProcessBuilder builder = new BazelProcessBuilder(args);
         builder.directory(directory);
         return builder;
     }
@@ -105,7 +106,7 @@ public final class ShellCommand implements Command {
     public int run() throws IOException, InterruptedException {
         Preconditions.checkState(!executed);
         executed = true;
-        ProcessBuilder builder = getProcessBuilder();
+        BazelProcessBuilder builder = getProcessBuilder();
         builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
         builder.redirectError(ProcessBuilder.Redirect.PIPE);
         Process process = builder.start();

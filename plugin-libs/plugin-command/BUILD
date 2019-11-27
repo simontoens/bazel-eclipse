@@ -46,6 +46,7 @@ java_library(
         "src/test/java/com/salesforce/bazel/eclipse/command/mock/MockCommand.java",
         "src/test/java/com/salesforce/bazel/eclipse/command/mock/MockCommandBuilder.java",
         "src/test/java/com/salesforce/bazel/eclipse/command/mock/MockCommandConsole.java",
+        "src/test/java/com/salesforce/bazel/eclipse/command/mock/MockWorkProgressMonitor.java",
         "src/test/java/com/salesforce/bazel/eclipse/command/mock/TestBazelCommandEnvironmentFactory.java",
     ]),
     visibility = ["//visibility:public"],
@@ -55,17 +56,75 @@ java_library(
         "//plugin-libs/plugin-testdeps",
 
         "//plugin-libs/plugin-testdeps:org_junit_junit",
+        "//plugin-libs/plugin-testdeps:org_mockito_mockito_core",
         "//plugin-libs/plugin-deps:com_google_guava",
     ],
 )
 
 
 java_test(
+    name = "BazelLauncherBuilderTest",
+    srcs = [
+       "src/test/java/com/salesforce/bazel/eclipse/command/BazelLauncherBuilderTest.java",
+    ],
+    deps = [
+        ":plugin-command",
+        ":plugin-command-test-mocks",
+        "//plugin-libs/plugin-abstractions",
+        "//plugin-libs/plugin-model",
+        "//plugin-libs/plugin-testdeps",
+
+        "//plugin-libs/plugin-testdeps:com_google_truth",
+        "//plugin-libs/plugin-testdeps:net_bytebuddy_byte_buddy",
+        "//plugin-libs/plugin-testdeps:org_hamcrest_core",
+        "//plugin-libs/plugin-testdeps:org_junit_junit",
+        "//plugin-libs/plugin-testdeps:org_objenesis_objenesis",
+    ],
+)
+
+java_test(
+    name = "BazelWorkspaceCommandRunnerTest",
+    srcs = [
+       "src/test/java/com/salesforce/bazel/eclipse/command/BazelWorkspaceCommandRunnerTest.java",
+    ],
+    deps = [
+        ":plugin-command",
+        ":plugin-command-test-mocks",
+        "//plugin-libs/plugin-abstractions",
+        "//plugin-libs/plugin-model",
+        "//plugin-libs/plugin-testdeps",
+
+        "//plugin-libs/plugin-testdeps:org_hamcrest_core",
+        "//plugin-libs/plugin-testdeps:org_junit_junit",
+        "//plugin-libs/plugin-testdeps:com_google_truth",
+    ],
+)
+
+java_test(
     name = "ShellCommandTest",
-    srcs = ["src/test/java/com/salesforce/bazel/eclipse/command/ShellCommandTest.java"],
+    srcs = [
+       "src/test/java/com/salesforce/bazel/eclipse/command/ShellCommandTest.java",
+    ],
     deps = [
         ":plugin-command",
         "//plugin-libs/plugin-abstractions",
+
+        "//plugin-libs/plugin-testdeps:org_hamcrest_core",
+        "//plugin-libs/plugin-testdeps:org_junit_junit",
+        "//plugin-libs/plugin-testdeps:com_google_truth",
+    ],
+)
+
+java_test(
+    name = "BazelCommandExecutorTest",
+    srcs = [
+       "src/test/java/com/salesforce/bazel/eclipse/command/internal/BazelCommandExecutorTest.java",
+    ],
+    deps = [
+        ":plugin-command",
+        ":plugin-command-test-mocks",
+        "//plugin-libs/plugin-abstractions",
+        "//plugin-libs/plugin-testdeps",
 
         "//plugin-libs/plugin-testdeps:org_hamcrest_core",
         "//plugin-libs/plugin-testdeps:org_junit_junit",

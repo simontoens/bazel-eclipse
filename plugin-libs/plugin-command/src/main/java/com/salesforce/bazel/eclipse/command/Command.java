@@ -35,8 +35,8 @@ public interface Command {
     ImmutableList<String> getSelectedOutputLines();
 
     /**
-     * Returns a ProcessBuilder configured to run this Command instance.
+     * Returns a BazelProcessBuilder configured to run this Command instance.
      */
-    ProcessBuilder getProcessBuilder();
+    BazelProcessBuilder getProcessBuilder();
 
 }

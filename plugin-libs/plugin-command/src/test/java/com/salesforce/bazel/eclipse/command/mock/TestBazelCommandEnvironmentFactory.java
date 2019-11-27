@@ -14,7 +14,7 @@ import com.salesforce.bazel.eclipse.test.TestBazelWorkspaceFactory;
  * @author plaird
  */
 public class TestBazelCommandEnvironmentFactory {
-    
+    public TestBazelWorkspaceFactory testWorkspace;
     public BazelWorkspaceCommandRunner globalCommandRunner;
     public BazelWorkspaceCommandRunner bazelWorkspaceCommandRunner;
     
@@ -27,7 +27,7 @@ public class TestBazelCommandEnvironmentFactory {
      * Basic testing environment for the command layer. It creates a simple Bazel workspace on the filesystem
      * with no Java/generic packages.
      */
-    public void createTestEnvironment(File tempDir) {
+    public void createTestEnvironment(File tempDir) throws Exception {
         // the name of the directory that contains the bazel workspace is significant, as the Eclipse feature
         // will use it in the name of the Eclipse project
         File workspaceDir = new File(tempDir, "bazel-workspace");
@@ -36,6 +36,7 @@ public class TestBazelCommandEnvironmentFactory {
         outputBase.mkdirs();
         
         TestBazelWorkspaceFactory testWorkspace = new TestBazelWorkspaceFactory(workspaceDir, outputBase, "bazel_command_executor_test");
+        testWorkspace.build();
         createTestEnvironment(testWorkspace, tempDir);
     }
     
@@ -44,15 +45,21 @@ public class TestBazelCommandEnvironmentFactory {
      * commands in the context of actual Bazel packages (e.g. Java) this is the form to use.
      */
     public void createTestEnvironment(TestBazelWorkspaceFactory testWorkspace, File tempDir) {
+        this.testWorkspace = testWorkspace;
+        
         File execDir = new File(tempDir, "executable");
         execDir.mkdir();
         this.bazelExecutable = new MockBazelExecutable(execDir);
         
         this.bazelAspectLocation = new MockBazelAspectLocation(tempDir, "test-aspect-label");
         this.commandConsole = new MockCommandConsole();
+
         this.commandBuilder = new MockCommandBuilder(commandConsole, testWorkspace.dirWorkspaceRoot, testWorkspace.dirOutputBase, 
             testWorkspace.dirExecRoot, testWorkspace.dirBazelBin);
-        
+        // when the workspace factory built out the Bazel workspace file system, it wrote a collection of aspect json files
+        // we need to tell the MockCommandBuilder where they are, since it will need to return them in command results
+        this.commandBuilder.addAspectJsonFileResponses(this.testWorkspace.aspectFileSets);
+
         BazelCommandManager bazelCommandManager = new BazelCommandManager(bazelAspectLocation, commandBuilder, commandConsole, 
             bazelExecutable.bazelExecutableFile);
         bazelCommandManager.setBazelExecutablePath(bazelExecutable.bazelExecutableFile.getAbsolutePath());
