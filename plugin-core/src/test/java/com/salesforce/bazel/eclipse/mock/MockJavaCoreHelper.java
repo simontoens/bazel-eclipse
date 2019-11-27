@@ -7,6 +7,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaModel;
@@ -54,8 +55,14 @@ public class MockJavaCoreHelper implements JavaCoreHelper {
     }
 
     @Override
-    public IClasspathEntry newSourceEntry(IPath path) {
-        return new MockIClasspathEntry(IClasspathEntry.CPE_SOURCE, path);
+    public IClasspathEntry newSourceEntry(IPath sourcePath, IPath outputPath, boolean isTestSource) {
+        MockIClasspathEntry sourceEntry = new MockIClasspathEntry(IClasspathEntry.CPE_SOURCE, sourcePath);
+        sourceEntry.setOutputLocation(outputPath);
+        if (isTestSource) {
+            MockIClasspathAttribute testAttr = new MockIClasspathAttribute(IClasspathAttribute.TEST, "true");
+            sourceEntry.addExtraAttribute(testAttr);
+        }
+        return sourceEntry;
     }
 
     @Override

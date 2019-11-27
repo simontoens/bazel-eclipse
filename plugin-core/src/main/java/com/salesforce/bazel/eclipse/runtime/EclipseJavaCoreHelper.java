@@ -4,6 +4,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaModel;
@@ -55,8 +56,17 @@ public class EclipseJavaCoreHelper implements JavaCoreHelper {
     }
 
     @Override
-    public IClasspathEntry newSourceEntry(IPath path) {
-        return JavaCore.newSourceEntry(path);
+    public IClasspathEntry newSourceEntry(IPath sourcePath, IPath outputPath, boolean isTestSource) {
+        IPath[] inclusionPatterns = {};
+        IPath[] exclusionPatterns = {};
+        IClasspathAttribute[] extraAttributes = {};
+        if (isTestSource) {
+            IClasspathAttribute testAttr = JavaCore.newClasspathAttribute(IClasspathAttribute.TEST, "true");
+            extraAttributes = new IClasspathAttribute[] { testAttr };
+        }
+        
+        IClasspathEntry entry = JavaCore.newSourceEntry(sourcePath, inclusionPatterns, exclusionPatterns, outputPath, extraAttributes); 
+        return entry;
     }
 
     @Override

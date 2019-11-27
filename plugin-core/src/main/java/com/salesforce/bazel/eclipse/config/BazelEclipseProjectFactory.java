@@ -341,8 +341,15 @@ public class BazelEclipseProjectFactory {
                     createFoldersForRelativePackagePath(eclipseProject.getProject(), bazelPackageFSPath, path);
             resourceHelper.createFolderLink(projectSourceFolder, realSourceDir, IResource.NONE, null);
 
+            IPath outputDir = null; // null is a legal value, it means use the default
+            boolean isTestSource = false; 
+            if (path.endsWith("src/test/java")) {
+                isTestSource = true;
+                outputDir = new Path(eclipseProject.getPath().toOSString() + "/testbin");
+            }
+            
             IPath sourceDir = projectSourceFolder.getFullPath();
-            IClasspathEntry sourceClasspathEntry = BazelPluginActivator.getJavaCoreHelper().newSourceEntry(sourceDir);
+            IClasspathEntry sourceClasspathEntry = BazelPluginActivator.getJavaCoreHelper().newSourceEntry(sourceDir, outputDir, isTestSource);
             classpathEntries.add(sourceClasspathEntry);
         }
 

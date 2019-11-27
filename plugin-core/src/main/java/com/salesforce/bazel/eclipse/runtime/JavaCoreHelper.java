@@ -179,11 +179,13 @@ public interface JavaCoreHelper {
      * newSourceEntry(path, new IPath[] {}, new IPath[] {}, null);
      * </pre>
      *
-     * @param path the absolute workspace-relative path of a source folder
+     * @param sourcePath the absolute workspace-relative path of a source folder
+     * @param outputPath the absolute workspace-relative path of the output folder, null is a legal value and means the 'default'
+     * @param isTestSource  pass true if this path contains test sources
      * @return a new source classpath entry
      * @see #newSourceEntry(IPath, IPath[], IPath[], IPath)
      */
-    IClasspathEntry newSourceEntry(IPath path);
+    IClasspathEntry newSourceEntry(IPath sourcePath, IPath outputPath, boolean isTestSource);
     
     /**
      * Creates and returns a new non-exported classpath entry of kind <code>CPE_PROJECT</code>

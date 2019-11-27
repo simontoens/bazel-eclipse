@@ -53,6 +53,11 @@ public class MockIJavaProject implements IJavaProject {
     }
     
     @Override
+    public IPath getPath() {
+        return iproject.getLocation();
+    }
+
+    @Override
     public IProject getProject() {
         return iproject;
     }
@@ -172,11 +177,6 @@ public class MockIJavaProject implements IJavaProject {
 
     @Override
     public IJavaElement getParent() {
-        throw new UnsupportedOperationException(UOE_MSG);
-    }
-
-    @Override
-    public IPath getPath() {
         throw new UnsupportedOperationException(UOE_MSG);
     }
 
