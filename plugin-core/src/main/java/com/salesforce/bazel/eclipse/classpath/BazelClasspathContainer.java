@@ -345,9 +345,10 @@ public class BazelClasspathContainer implements IClasspathContainer {
             AspectOutputJars jarSet) {
         IClasspathEntry cpEntry = null;
         File bazelOutputBase = bazelCommandRunner.getBazelWorkspaceOutputBase(progressMonitor);
-        IPath jarPath = getJarPathOnDisk(bazelOutputBase, jarSet.getJar());
+        File bazelExecRoot = bazelCommandRunner.getBazelWorkspaceExecRoot(progressMonitor);
+        IPath jarPath = getJarPathOnDisk(bazelOutputBase, bazelExecRoot, jarSet.getJar());
         if (jarPath != null) {
-            IPath srcJarPath = getJarPathOnDisk(bazelOutputBase, jarSet.getSrcJar());
+            IPath srcJarPath = getJarPathOnDisk(bazelOutputBase, bazelExecRoot, jarSet.getSrcJar());
             IPath srcJarRootPath = null;
             cpEntry = BazelPluginActivator.getJavaCoreHelper().newLibraryEntry(jarPath, srcJarPath, srcJarRootPath);
         }
@@ -360,10 +361,11 @@ public class BazelClasspathContainer implements IClasspathContainer {
         IClasspathEntry[] entries = new IClasspathEntry[jars.size()];
         int i = 0;
         File bazelOutputBase = bazelCommandRunner.getBazelWorkspaceOutputBase(progressMonitor);
+        File bazelExecRoot = bazelCommandRunner.getBazelWorkspaceExecRoot(progressMonitor);
         for (AspectOutputJars j : jars) {
-            IPath jarPath = getJarPathOnDisk(bazelOutputBase, j.getJar());
+            IPath jarPath = getJarPathOnDisk(bazelOutputBase, bazelExecRoot, j.getJar());
             if (jarPath != null) {
-                IPath srcJarPath = getJarPathOnDisk(bazelOutputBase, j.getSrcJar());
+                IPath srcJarPath = getJarPathOnDisk(bazelOutputBase, bazelExecRoot, j.getSrcJar());
                 IPath srcJarRootPath = null;
                 entries[i] = BazelPluginActivator.getJavaCoreHelper().newLibraryEntry(jarPath, srcJarPath, srcJarRootPath);
                 i++;
@@ -372,21 +374,33 @@ public class BazelClasspathContainer implements IClasspathContainer {
         return entries;
     }
 
-    private IPath getJarPathOnDisk(File bazelOutputBase, String file) {
+    private IPath getJarPathOnDisk(File bazelOutputBase, File bazelExecRoot, String file) {
         if (file == null) {
             return null;
         }
-        Path path = Paths.get(bazelOutputBase.toString(), file);
+        Path path = null;
+        if (file.startsWith("external")) {
+            path = Paths.get(bazelOutputBase.toString(), file);
+        } else {
+            path = Paths.get(bazelExecRoot.toString(), file);
+        }
 
         // We have had issues with Eclipse complaining about symlinks in the Bazel output directories not being real,
         // so we resolve them before handing them back to Eclipse.
         if (Files.isSymbolicLink(path)) {
             try {
+                // resolving the link will fail if the symlink does not a point to a real file
                 path = Files.readSymbolicLink(path);
             } catch (IOException ex) {
-                BazelPluginActivator.error("Not adding jar to project ["+eclipseProjectName+"] because it does not exist on the filesystem: "+path);
+                BazelPluginActivator.error("Problem adding jar to project ["+eclipseProjectName+"] because it does not exist on the filesystem: "+path);
                 printDirectoryDiagnostics(path.toFile().getParentFile().getParentFile(), " ");
             }
+        } else {
+            // it is a normal path, check for existence
+            if (!Files.exists(path)) {
+                BazelPluginActivator.error("Problem adding jar to project ["+eclipseProjectName+"] because it does not exist on the filesystem: "+path);
+                printDirectoryDiagnostics(path.toFile().getParentFile().getParentFile(), " ");
+            }            
         }
         
         return org.eclipse.core.runtime.Path.fromOSString(path.toString());
