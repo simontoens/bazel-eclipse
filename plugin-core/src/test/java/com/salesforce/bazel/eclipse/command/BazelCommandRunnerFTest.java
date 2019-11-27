@@ -13,7 +13,7 @@ import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.command.BazelCommandManager;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.mock.MockEclipse;
-import com.salesforce.bazel.eclipse.mock.MockEnvironmentBuilder;
+import com.salesforce.bazel.eclipse.mock.EclipseFunctionalTestEnvironmentFactory;
 
 public class BazelCommandRunnerFTest {
     @Rule
@@ -30,7 +30,7 @@ public class BazelCommandRunnerFTest {
         File testTempDir = tmpFolder.newFolder();
 
         // create the mock Eclipse runtime in the correct state
-        MockEclipse mockEclipse = MockEnvironmentBuilder.createMockEnvironment_PriorToImport_JavaPackages(testTempDir, 5);
+        MockEclipse mockEclipse = EclipseFunctionalTestEnvironmentFactory.createMockEnvironment_PriorToImport_JavaPackages(testTempDir, 5);
         
         // the Bazel commands will run after the bazel root directory is chosen in the UI, so simulate the selection here
         BazelPluginActivator.getInstance().setBazelWorkspaceRootDirectory(mockEclipse.getBazelWorkspaceRoot());

@@ -13,14 +13,27 @@ import java.util.TreeSet;
 /**
  * Utility class to generate a Bazel workspace and other artifacts on the filesystem.
  * As of this writing, the workspace won't actually build, it just fakes it enough
- * to fool the Eclipse import/classpath logic.
+ * to fool the Eclipse import/classpath logic that scans the filesystem looking for 
+ * particular files.
+ * <p>
+ * There is a separate test layer in the command plugin that simulates Bazel command executions.
  * 
  * @author plaird
  */
-public class TestBazelWorkspaceCreator {
+public class TestBazelWorkspaceFactory {
     
-    private File workspaceRootDirectory = null;
-    private File workspaceBinDirectory = null;
+    public String workspaceName = "test_workspace";
+
+    // directories
+    public final File dirWorkspaceRoot; // provided by test, will contain WORKSPACE and subdirs will have .java files and BUILD files
+    public final File dirOutputBase;    // provided by test
+    public File dirOutputBaseExternal;  // [outputbase]/external
+    public File dirExecRootParent;      // [outputbase]/execroot
+    public File dirExecRoot;            // [outputbase]/execroot/test_workspace
+    public File dirOutputPath;          // [outputbase]/execroot/test_workspace/bazel-out
+    public File dirOutputPathPlatform;  // [outputbase]/execroot/test_workspace/bazel-out/darwin-fastbuild
+    public File dirBazelBin;            // [outputbase]/execroot/test_workspace/bazel-out/darwin-fastbuild/bin
+    public File dirBazelTestLogs;       // [outputbase]/execroot/test_workspace/bazel-out/darwin-fastbuild/testlogs
 
     private int numberJavaPackages = 0;
     private int numberGenrulePackages = 0;
@@ -29,32 +42,57 @@ public class TestBazelWorkspaceCreator {
     // map of package path (projects/libs/javalib0) to the set of absolute paths for the aspect files for the package and deps
     public Map<String, Set<String>> aspectFileSets= new TreeMap<>();
     
-    public TestBazelWorkspaceCreator(File workspaceRootDirectory, File workspaceBinDirectory) {
-        this.workspaceRootDirectory = workspaceRootDirectory;
-        this.workspaceBinDirectory = workspaceBinDirectory;
+    /**
+     * Locations to write the assets for the simulated workspace. Both locations should be empty,
+     * and the directories must exist.
+     * 
+     * @param workspaceRootDirectory  where the workspace files will be, this includes the WORKSPACE file and .java files
+     * @param outputBaseDirectory  this is where simulated output is located, like generated .json aspect files
+     */
+    public TestBazelWorkspaceFactory(File workspaceRootDirectory, File outputBaseDirectory) {
+        this.dirWorkspaceRoot = workspaceRootDirectory;
+        this.dirOutputBase = outputBaseDirectory;
     }
+
+    /**
+     * Locations to write the assets for the simulated workspace. Both locations should be empty,
+     * and the directories must exist.
+     * 
+     * @param workspaceRootDirectory  where the workspace files will be, this includes the WORKSPACE file and .java files
+     * @param outputBaseDirectory  this is where simulated output is located, like generated .json aspect files
+     * @param workspaceName  underscored name of workspace, will appear in directory paths in outputBase
+     */
+    public TestBazelWorkspaceFactory(File workspaceRootDirectory, File outputBaseDirectory, String workspaceName) {
+        this.dirWorkspaceRoot = workspaceRootDirectory;
+        this.dirOutputBase = outputBaseDirectory;
+        this.workspaceName = workspaceName;
+    }
+
     
-    
-    public TestBazelWorkspaceCreator javaPackages(int count) {
+    public TestBazelWorkspaceFactory javaPackages(int count) {
         numberJavaPackages = count;
         return this;
     }
 
-    public TestBazelWorkspaceCreator genrulePackages(int count) {
+    public TestBazelWorkspaceFactory genrulePackages(int count) {
         numberGenrulePackages = count;
         return this;
     }
     
-    public TestBazelWorkspaceCreator build() throws Exception {
+    public TestBazelWorkspaceFactory build() throws Exception {
         
-        File projectsDir = new File(workspaceRootDirectory, "projects");
+        // Create the outputbase structure
+        createOutputBaseStructure();
+        
+        // Create the Workspace structure
+        File projectsDir = new File(dirWorkspaceRoot, "projects");
         projectsDir.mkdir();
         File libsDir = new File(projectsDir, "libs");
         libsDir.mkdir();
         String libsRelativePath = "projects/libs";
         
         // make the WORKSPACE file
-        File workspaceFile = new File(workspaceRootDirectory, "WORKSPACE");
+        File workspaceFile = new File(dirWorkspaceRoot, "WORKSPACE");
         try {
             workspaceFile.createNewFile();
         } catch (Exception anyE) {
@@ -97,14 +135,14 @@ public class TestBazelWorkspaceCreator {
             
             // main fruit source aspect
             String extraDep = previousJavaLibTarget != null ? "    \"//"+previousJavaLibTarget+"\",\n" : null;
-            String aspectFilePath_mainsource = TestAspectFileCreator.createJavaAspectFile(workspaceBinDirectory, packageRelativePath, packageName, packageName, 
-                extraDep, sourceFiles, true);
+            String aspectFilePath_mainsource = TestAspectFileCreator.createJavaAspectFile(dirOutputBase, packageRelativePath, 
+                packageName, packageName, extraDep, sourceFiles, true);
             packageAspectFiles.add(aspectFilePath_mainsource);
             
-            // add aspects for maven jars
-            String aspectFilePath_slf4j = TestAspectFileCreator.createJavaAspectFileForMavenJar(workspaceBinDirectory, "org_slf4j_slf4j_api", "slf4j-api-1.7.25");
+            // add aspects for maven jars (just picked a couple of typical maven jars to use)
+            String aspectFilePath_slf4j = TestAspectFileCreator.createJavaAspectFileForMavenJar(dirOutputBase, "org_slf4j_slf4j_api", "slf4j-api-1.7.25");
             packageAspectFiles.add(aspectFilePath_slf4j);
-            String aspectFilePath_guava = TestAspectFileCreator.createJavaAspectFileForMavenJar(workspaceBinDirectory, "com_google_guava_guava", "guava-20.0");
+            String aspectFilePath_guava = TestAspectFileCreator.createJavaAspectFileForMavenJar(dirOutputBase, "com_google_guava_guava", "guava-20.0");
             packageAspectFiles.add(aspectFilePath_guava);
 
             // test source
@@ -122,14 +160,14 @@ public class TestBazelWorkspaceCreator {
             testSourceFiles.add(bananaTestSrc);
             
             // test fruit source aspect
-            String aspectFilePath_testsource = TestAspectFileCreator.createJavaAspectFile(workspaceBinDirectory, libsRelativePath+"/"+packageName, packageName, packageName, 
+            String aspectFilePath_testsource = TestAspectFileCreator.createJavaAspectFile(dirOutputBase, libsRelativePath+"/"+packageName, packageName, packageName, 
                 null, testSourceFiles, false);
             packageAspectFiles.add(aspectFilePath_testsource);
             
             // add aspects for test maven jars
-            String aspectFilePath_junit = TestAspectFileCreator.createJavaAspectFileForMavenJar(workspaceBinDirectory, "junit_junit", "junit-4.12");
+            String aspectFilePath_junit = TestAspectFileCreator.createJavaAspectFileForMavenJar(dirOutputBase, "junit_junit", "junit-4.12");
             packageAspectFiles.add(aspectFilePath_junit);
-            String aspectFilePath_hamcrest = TestAspectFileCreator.createJavaAspectFileForMavenJar(workspaceBinDirectory, "org_hamcrest_hamcrest_core", "hamcrest-core-1.3");
+            String aspectFilePath_hamcrest = TestAspectFileCreator.createJavaAspectFileForMavenJar(dirOutputBase, "org_hamcrest_hamcrest_core", "hamcrest-core-1.3");
             packageAspectFiles.add(aspectFilePath_hamcrest);
 
             // we chain the libs together to test inter project deps
@@ -163,6 +201,31 @@ public class TestBazelWorkspaceCreator {
         return this;
     }
     
+    
+    // OUTPUT BASE
+    
+    /**
+     * When you do a 'bazel info' you will see the list of important directories located in the output_base directory.
+     * This method creates this structure of directories.
+     */
+    public void createOutputBaseStructure() {
+        dirOutputBaseExternal = new File(dirOutputBase, "external");
+        dirOutputBaseExternal.mkdirs();
+        dirExecRootParent = new File(dirOutputBase, "execroot"); // [outputbase]/execroot
+        dirExecRootParent.mkdirs();
+        dirExecRoot = new File(dirExecRootParent, workspaceName); // [outputbase]/execroot/test_workspace 
+        dirExecRoot.mkdirs();
+        dirOutputPath = new File(dirExecRoot, "bazel-out"); // [outputbase]/execroot/test_workspace/bazel-out
+        dirOutputPath.mkdirs();
+        dirOutputPathPlatform = new File(dirOutputPath, "darwin-fastbuild"); // [outputbase]/execroot/test_workspace/bazel-out/darwin-fastbuild
+        dirOutputPathPlatform.mkdirs();
+        
+        dirBazelBin = new File(dirOutputPathPlatform, "bin"); // [outputbase]/execroot/test_workspace/bazel-out/darwin-fastbuild/bin
+        dirBazelBin.mkdirs();
+        dirBazelTestLogs = new File(dirOutputPathPlatform, "testlogs"); // [outputbase]/execroot/test_workspace/bazel-out/darwin-fastbuild/testlogs
+        dirBazelTestLogs.mkdirs();
+        
+    }
     
 
     // GENRULE

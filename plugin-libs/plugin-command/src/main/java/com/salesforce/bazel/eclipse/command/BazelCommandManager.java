@@ -73,13 +73,13 @@ public class BazelCommandManager {
      * streams.
      */
     public BazelCommandManager(BazelAspectLocation aspectLocation, CommandBuilder commandBuilder, CommandConsoleFactory consoleFactory,
-            String bazelExecutablePath) {
+            File bazelExecutablePath) {
         this.aspectLocation = aspectLocation;
         this.commandBuilder = commandBuilder;
         this.consoleFactory = consoleFactory;
         
-        BazelWorkspaceCommandRunner.setBazelExecutablePath(bazelExecutablePath);
-        this.genericCommandRunner = new BazelWorkspaceCommandRunner(new File(bazelExecutablePath), commandBuilder);
+        BazelWorkspaceCommandRunner.setBazelExecutablePath(bazelExecutablePath.getAbsolutePath());
+        this.genericCommandRunner = new BazelWorkspaceCommandRunner(bazelExecutablePath, commandBuilder);
     }
 
     

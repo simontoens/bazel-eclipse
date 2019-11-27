@@ -33,20 +33,24 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.salesforce.bazel.eclipse.abstractions.BazelAspectLocation;
 import com.salesforce.bazel.eclipse.abstractions.BazelCommandArgs;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsole;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
+import com.salesforce.bazel.eclipse.command.mock.MockBazelExecutable;
 import com.salesforce.bazel.eclipse.command.shell.ShellCommandBuilder;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.TargetKind;
 
-public class BazelCommandBuilderTest {
+public class BazelLauncherBuilderTest {
+    @Rule
+    public TemporaryFolder tmpFolder = new TemporaryFolder();
 
-    // the code under test wants a real executable (checks whether it exists)
-    private static final String BAZEL_EXECUTABLE = System.getProperty("java.home") + "/bin/java";
+    MockBazelExecutable mockBazelExecutable;
     private static final int DEBUG_PORT = 1234;
 
     @Test
@@ -55,12 +59,12 @@ public class BazelCommandBuilderTest {
         CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_BINARY;
-        BazelLauncherBuilder cmdBuilder =
+        BazelLauncherBuilder launcherBuilder =
                 new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap());
 
-        List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
+        List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(BAZEL_EXECUTABLE, cmdTokens.get(0));
+        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
         assertEquals("run", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertFalse(cmdTokens.contains("debug"));
@@ -72,13 +76,13 @@ public class BazelCommandBuilderTest {
         CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_BINARY;
-        BazelLauncherBuilder cmdBuilder =
+        BazelLauncherBuilder launcherBuilder =
                 new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap())
                         .setDebugMode(true, "localhost", DEBUG_PORT);
 
-        List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
+        List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(BAZEL_EXECUTABLE, cmdTokens.get(0));
+        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
         assertEquals("run", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertTrue(cmdTokens.toString().contains(
@@ -91,12 +95,12 @@ public class BazelCommandBuilderTest {
         CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
-        BazelLauncherBuilder cmdBuilder =
+        BazelLauncherBuilder launcherBuilder =
                 new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap());
 
-        List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
+        List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(BAZEL_EXECUTABLE, cmdTokens.get(0));
+        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
         assertEquals("test", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertFalse(cmdTokens.toString().contains("debug"));
@@ -110,11 +114,11 @@ public class BazelCommandBuilderTest {
         TargetKind targetKind = TargetKind.JAVA_TEST;
         Map<String, String> bazelArgs =
                 Collections.singletonMap(BazelCommandArgs.TEST_FILTER.getName(), "someBazelTestFilter");
-        BazelLauncherBuilder cmdBuilder = new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, bazelArgs);
+        BazelLauncherBuilder launcherBuilder = new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, bazelArgs);
 
-        List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
+        List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(BAZEL_EXECUTABLE, cmdTokens.get(0));
+        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
         assertEquals("test", cmdTokens.get(1));
         assertTrue(cmdTokens.contains("--test_filter=someBazelTestFilter"));
         assertTrue(cmdTokens.contains(label.getLabel()));
@@ -127,13 +131,13 @@ public class BazelCommandBuilderTest {
         CommandBuilder commandBuilder = getCommandBuilder();
         BazelLabel label = new BazelLabel("//a/b/c");
         TargetKind targetKind = TargetKind.JAVA_TEST;
-        BazelLauncherBuilder cmdBuilder =
+        BazelLauncherBuilder launcherBuilder =
                 new BazelLauncherBuilder(bazelCommandRunner, commandBuilder, label, targetKind, Collections.emptyMap())
                         .setDebugMode(true, "localhost", DEBUG_PORT);
 
-        List<String> cmdTokens = cmdBuilder.build().getProcessBuilder().command();
+        List<String> cmdTokens = launcherBuilder.build().getProcessBuilder().command();
 
-        assertEquals(BAZEL_EXECUTABLE, cmdTokens.get(0));
+        assertEquals(mockBazelExecutable.bazelExecutableFile, cmdTokens.get(0));
         assertEquals("test", cmdTokens.get(1));
         assertTrue(cmdTokens.contains(label.getLabel()));
         assertTrue(cmdTokens.toString().contains("debug"));
@@ -158,10 +162,22 @@ public class BazelCommandBuilderTest {
                 return null;
             }
         };
+        
+        MockBazelExecutable mockBazelExecutable = null;
+        try {
+            mockBazelExecutable = new MockBazelExecutable(tmpFolder.newFolder());
+        } catch (Exception anyE) {
+            throw new RuntimeException(anyE);
+        }
+        
         CommandBuilder commandBuilder = new ShellCommandBuilder(commandConsoleFactory);
-        BazelCommandManager bazelCommandManager = new BazelCommandManager(bazelAspectLocation, commandBuilder, commandConsoleFactory, BAZEL_EXECUTABLE);
-        bazelCommandManager.setBazelExecutablePath(BAZEL_EXECUTABLE);
-        return new BazelWorkspaceCommandRunner(new File(BAZEL_EXECUTABLE), bazelAspectLocation, commandBuilder, commandConsoleFactory, new File(""));
+        
+        BazelCommandManager bazelCommandManager = new BazelCommandManager(bazelAspectLocation, commandBuilder, commandConsoleFactory, 
+            mockBazelExecutable.bazelExecutableFile);
+        bazelCommandManager.setBazelExecutablePath(mockBazelExecutable.bazelExecutableFile.getAbsolutePath());
+        
+        return new BazelWorkspaceCommandRunner(mockBazelExecutable.bazelExecutableFile, bazelAspectLocation, commandBuilder, 
+            commandConsoleFactory, new File(""));
     }
 
     CommandBuilder getCommandBuilder() {

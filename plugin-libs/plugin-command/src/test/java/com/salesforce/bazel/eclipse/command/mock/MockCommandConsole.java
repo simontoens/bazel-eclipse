@@ -1,4 +1,4 @@
-package com.salesforce.bazel.eclipse.mock;
+package com.salesforce.bazel.eclipse.command.mock;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

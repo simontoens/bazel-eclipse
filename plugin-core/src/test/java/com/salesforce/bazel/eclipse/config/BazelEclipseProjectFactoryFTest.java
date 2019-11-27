@@ -17,7 +17,7 @@ import org.junit.rules.TemporaryFolder;
 import com.salesforce.bazel.eclipse.BazelNature;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.mock.MockEclipse;
-import com.salesforce.bazel.eclipse.mock.MockEnvironmentBuilder;
+import com.salesforce.bazel.eclipse.mock.EclipseFunctionalTestEnvironmentFactory;
 
 /**
  * This FTest checks that the Eclipse workspace and Eclipse projects are configured as expected
@@ -43,7 +43,7 @@ public class BazelEclipseProjectFactoryFTest {
         // create the mock Eclipse runtime in the correct state, which is two java projects javalib0 and javalib1
         int numberOfJavaPackages = 2;
         boolean computeClasspaths = true;
-        MockEclipse mockEclipse = MockEnvironmentBuilder.createMockEnvironment_Imported_All_JavaPackages(testTempDir, numberOfJavaPackages, computeClasspaths);
+        MockEclipse mockEclipse = EclipseFunctionalTestEnvironmentFactory.createMockEnvironment_Imported_All_JavaPackages(testTempDir, numberOfJavaPackages, computeClasspaths);
         workspace_IProject = mockEclipse.getImportedProject("Bazel Workspace ("+MockEclipse.BAZEL_WORKSPACE_NAME+")");
         javalib0_IProject = mockEclipse.getImportedProject("javalib0");
         javalib1_IProject = mockEclipse.getImportedProject("javalib1");

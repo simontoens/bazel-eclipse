@@ -143,8 +143,9 @@ public class BazelPluginActivator extends AbstractUIPlugin {
         // Get the bazel executable path from the settings, defaults to /usr/local/bin/bazel
         IPreferenceStore prefsStore =  resourceHelper.getPreferenceStore(this);
         String bazelPath = prefsStore.getString(BazelPreferencePage.BAZEL_PATH_PREF_NAME);
+        File bazelPathFile = new File(bazelPath);
 
-        bazelCommandManager = new BazelCommandManager(aspectLocation, commandBuilder, consoleFactory, bazelPath);
+        bazelCommandManager = new BazelCommandManager(aspectLocation, commandBuilder, consoleFactory, bazelPathFile);
 
         prefsStore.addPropertyChangeListener(new IPropertyChangeListener() {
             @Override

@@ -17,7 +17,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.mock.MockEclipse;
-import com.salesforce.bazel.eclipse.mock.MockEnvironmentBuilder;
+import com.salesforce.bazel.eclipse.mock.EclipseFunctionalTestEnvironmentFactory;
 import com.salesforce.bazel.eclipse.runtime.JavaCoreHelper;
 
 public class BazelClasspathContainerFTest {
@@ -117,7 +117,7 @@ public class BazelClasspathContainerFTest {
         // create the mock Eclipse runtime in the correct state
         int numberOfJavaPackages = 2;
         boolean computeClasspaths = true; 
-        MockEclipse mockEclipse = MockEnvironmentBuilder.createMockEnvironment_Imported_All_JavaPackages(testTempDir, numberOfJavaPackages, computeClasspaths);
+        MockEclipse mockEclipse = EclipseFunctionalTestEnvironmentFactory.createMockEnvironment_Imported_All_JavaPackages(testTempDir, numberOfJavaPackages, computeClasspaths);
         
         workspace_IProject = mockEclipse.getImportedProject("Bazel Workspace ("+MockEclipse.BAZEL_WORKSPACE_NAME+")");
         workspace_JavaIProject = BazelPluginActivator.getJavaCoreHelper().getJavaProjectForProject(workspace_IProject);

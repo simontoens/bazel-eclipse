@@ -12,14 +12,14 @@ import com.salesforce.bazel.eclipse.importer.BazelProjectImportScanner;
 import com.salesforce.bazel.eclipse.model.BazelPackageInfo;
 import com.salesforce.bazel.eclipse.runtime.EclipseWorkProgressMonitor;
 import com.salesforce.bazel.eclipse.runtime.JavaCoreHelper;
-import com.salesforce.bazel.eclipse.test.TestBazelWorkspaceCreator;
+import com.salesforce.bazel.eclipse.test.TestBazelWorkspaceFactory;
 
 /**
- * Main entry point for the tests creating a mock environment for a test. Produces a Mock Eclipse workspace from templates.
+ * Factory for creating test environments for Eclipse functional tests. Produces a Mock Eclipse workspace from templates.
  * 
  * @author plaird
  */
-public class MockEnvironmentBuilder {
+public class EclipseFunctionalTestEnvironmentFactory {
 
     /**
      * Creates an environment with a Bazel workspace with Java packages on disk, but nothing has been imported yet into Eclipse. 
@@ -31,15 +31,18 @@ public class MockEnvironmentBuilder {
      * </ul>
      */
     public static MockEclipse createMockEnvironment_PriorToImport_JavaPackages(File testTempDir, int numberOfJavaPackages) throws Exception {
-        // create the mock Eclipse runtime
-        MockEclipse mockEclipse = new MockEclipse(testTempDir);
-
         // build out a Bazel workspace with specified number of Java packages, and a couple of genrules packages just to test that they get ignored
-        TestBazelWorkspaceCreator bazelWorkspaceCreator = new TestBazelWorkspaceCreator(mockEclipse.getBazelWorkspaceRoot(), mockEclipse.getBazelBin()).
+        File wsDir = new File(testTempDir, MockEclipse.BAZEL_WORKSPACE_NAME);
+        wsDir.mkdirs();
+        File outputbaseDir = new File(testTempDir, "outputbase");
+        outputbaseDir.mkdirs();
+        TestBazelWorkspaceFactory bazelWorkspaceCreator = new TestBazelWorkspaceFactory(wsDir, outputbaseDir).
                 javaPackages(numberOfJavaPackages).genrulePackages(2);
         bazelWorkspaceCreator.build();
-        mockEclipse.setBazelWorkspaceCreator(bazelWorkspaceCreator);
-        
+
+        // create the mock Eclipse runtime
+        MockEclipse mockEclipse = new MockEclipse(bazelWorkspaceCreator, testTempDir);
+
         return mockEclipse;
     }
     
