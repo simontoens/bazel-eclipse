@@ -195,7 +195,7 @@ public class BazelLaunchConfigurationTab extends AbstractLaunchConfigurationTab 
     
     private synchronized void initializeLabelsForSelectedProject(IProject project) {
         if (labelsForSelectedProject == null) {
-            labelsForSelectedProject = support.getRunnableBazelTargetsForProject(project);
+            labelsForSelectedProject = support.getLaunchableBazelTargetsForProject(project);
         }
     }
     

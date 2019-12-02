@@ -68,7 +68,7 @@ public enum TargetKind {
 
         @Override
         public boolean isRunnable() {
-            return true;
+            return false;
         }
 
         @Override

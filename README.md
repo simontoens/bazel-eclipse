@@ -10,8 +10,7 @@ This project is supported by Salesforce.
 Active development of this feature is currently being done by a team within Salesforce.
 You can track our past/current/future work using these links:
 
-- [bazel-eclipse roadmap](https://github.com/salesforce/bazel-eclipse/wiki)
-- [bazel-eclipse issues](https://github.com/salesforce/bazel-eclipse/issues)
+- [bazel-eclipse projects](https://github.com/salesforce/bazel-eclipse/projects)
 
 :fire: currently the feature is still in development and only works on small, Java-only workspaces. There are known scalability issues, and current development is only focused on Java projects.
 

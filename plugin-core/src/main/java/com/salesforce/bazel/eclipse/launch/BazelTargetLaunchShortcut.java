@@ -89,7 +89,7 @@ public class BazelTargetLaunchShortcut implements ILaunchShortcut {
         IJavaModel eclipseJavaModel = BazelPluginActivator.getJavaCoreHelper().getJavaModelForWorkspace(eclipseWorkspaceRoot);
         IProject project = eclipseJavaModel.getJavaProject(projectName).getProject();
 
-        Collection<AspectPackageInfo> apis = support.getRunnableAspectPackageInfosForProject(project);
+        Collection<AspectPackageInfo> apis = support.getLaunchableAspectPackageInfosForProject(project);
         Collection<AspectPackageInfo> matchingInfos = apis.stream().filter(api -> fqClassName.equals(api.getMainClass())).collect(Collectors.toList());
         if (matchingInfos.isEmpty()) {
             // bazel allows a java binary rule to specify the main_class as the target name, so we should also look at the name of the targets

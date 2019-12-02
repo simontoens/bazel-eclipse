@@ -35,13 +35,11 @@ package com.salesforce.bazel.eclipse.launch;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
@@ -109,9 +107,6 @@ class BazelLaunchConfigurationSupport {
         }
     }
 
-    private static EnumSet<TargetKind> RUNNABLE_TARGETS = EnumSet.copyOf(
-        Arrays.asList(TargetKind.values()).stream().filter(TargetKind::isRunnable).collect(Collectors.toList()));
-
     /**
      * Attributes stored in the Bazel Launch Configuration.
      */
@@ -167,21 +162,12 @@ class BazelLaunchConfigurationSupport {
 
 
     /**
-     * Returns all runnable Bazel targets for the specified project.
-     * 
-     * @see {@link TargetKind#isRunnable()}
-     */
-    Collection<TypedBazelLabel> getRunnableBazelTargetsForProject(IProject project) {
-        return getBazelTargetsForProject(project, RUNNABLE_TARGETS);
-    }
-    
-    /**
      * Returns all runnable AspectPackageInfo instances for the specified project.
      * 
      * @see {@link TargetKind#isRunnable()}
      */
-    Collection<AspectPackageInfo> getRunnableAspectPackageInfosForProject(IProject project) {
-        return getAspectPackageInfosForProject(project, RUNNABLE_TARGETS);
+    Collection<AspectPackageInfo> getLaunchableAspectPackageInfosForProject(IProject project) {
+        return getAspectPackageInfosForProject(project, LAUNCHABLE_TARGET_KINDS);
     }
     
     /**
@@ -193,6 +179,15 @@ class BazelLaunchConfigurationSupport {
         return apis.lookupByTargetKind(targetTypes);
     }
 
+    /**
+     * Returns all runnable Bazel targets for the specified project.
+     * 
+     * @see {@link TargetKind#isRunnable()}
+     */
+    Collection<TypedBazelLabel> getLaunchableBazelTargetsForProject(IProject project) {
+        return getBazelTargetsForProject(project, LAUNCHABLE_TARGET_KINDS);
+    }
+    
     /**
      * Returns all Bazel targets of the specified type, for the specified project.
      */
@@ -218,4 +213,16 @@ class BazelLaunchConfigurationSupport {
         }
     }
 
+    private static EnumSet<TargetKind> LAUNCHABLE_TARGET_KINDS = null;
+    
+    static {
+        List<TargetKind> targets = new ArrayList<>();
+        for (TargetKind kind : TargetKind.values()) {
+            if (kind.isRunnable() || kind.isTestable()) {
+                targets.add(kind);
+            }
+        }
+        LAUNCHABLE_TARGET_KINDS = EnumSet.copyOf(targets);
+    }
+    
 }
