@@ -16,6 +16,8 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.preferences.IScopeContext;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.mockito.Mockito;
 import org.osgi.service.prefs.Preferences;
@@ -222,6 +224,21 @@ public class MockResourceHelper implements ResourceHelper {
         
         // MockIWorkspaceRoot is where the link bookkeeping is stored, as links are usually resolved with IWorkspaceRoot.findMember() calls.
         workspaceRoot.linkedFolders.put(thisFolder.getLocation().makeAbsolute().toOSString(), targetFile);
+    }
+
+    public String[] lastExecCommandLine = null;
+    
+    @Override
+    public Process exec(String[] cmdLine, File workingDirectory) throws CoreException {
+        // just return a simple Mock here, as it normally is used as an opaque object
+        this.lastExecCommandLine = cmdLine;
+        return Mockito.mock(Process.class);
+    }
+
+    @Override
+    public IProcess newProcess(ILaunch launch, Process process, String label) {
+        // we aren't mocking out all the side effects of launching an external process
+        return Mockito.mock(IProcess.class);
     }
 
 }

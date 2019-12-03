@@ -84,33 +84,14 @@ java_test(
 )
 
 java_test(
-    name = "BazelLaunchConfigurationDelegateTest",
-    srcs = ["src/test/java/com/salesforce/bazel/eclipse/launch/BazelLaunchConfigurationDelegateTest.java",
-            "src/test/java/com/salesforce/bazel/eclipse/mock/MockLaunchConfiguration.java"],
-    deps = [
-        ":com.salesforce.bazel.eclipse.core-bin",
-
-        "//plugin-libs/plugin-testdeps:org_mockito_mockito_core",
-
-        "//tools/eclipse_jars:org_eclipse_core_resources",
-        "//tools/eclipse_jars:org_eclipse_debug_core",
-        "//tools/eclipse_jars:org_eclipse_equinox_common",
-    ],
- )
-
-java_test(
     name = "BazelLaunchConfigurationDelegateFTest",
-    srcs = ["src/test/java/com/salesforce/bazel/eclipse/launch/BazelLaunchConfigurationDelegateFTest.java",
-            "src/test/java/com/salesforce/bazel/eclipse/mock/MockLaunchConfiguration.java"],
+    srcs = ["src/test/java/com/salesforce/bazel/eclipse/launch/BazelLaunchConfigurationDelegateFTest.java"] + mock_src,
     deps = [
         ":com.salesforce.bazel.eclipse.core-bin",
 
-        "//plugin-libs/plugin-testdeps:org_mockito_mockito_core",
-
-        "//tools/eclipse_jars:org_eclipse_core_resources",
-        "//tools/eclipse_jars:org_eclipse_debug_core",
-        "//tools/eclipse_jars:org_eclipse_equinox_common",
-    ],
+        "//plugin-libs/plugin-model",
+    ] + mock_deps,
+    runtime_deps = mock_runtime_deps,
  )
 
 java_test(

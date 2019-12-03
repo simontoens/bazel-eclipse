@@ -11,8 +11,8 @@ import com.salesforce.bazel.eclipse.command.mock.MockBazelAspectLocation;
 import com.salesforce.bazel.eclipse.command.mock.MockCommandBuilder;
 import com.salesforce.bazel.eclipse.command.mock.MockCommandConsole;
 import com.salesforce.bazel.eclipse.command.mock.TestBazelCommandEnvironmentFactory;
+import com.salesforce.bazel.eclipse.launch.BazelLaunchConfigurationDelegate;
 import com.salesforce.bazel.eclipse.preferences.BazelPreferencePage;
-import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
 import com.salesforce.bazel.eclipse.test.TestBazelWorkspaceFactory;
 
 
@@ -37,8 +37,12 @@ public class MockEclipse {
     private MockIProjectFactory mockIProjectFactory;
     private MockIEclipsePreferences mockPrefs;
     private MockIPreferenceStore mockPrefsStore;
-    private ResourceHelper mockResourceHelper;
+    private MockResourceHelper mockResourceHelper;
     private MockJavaCoreHelper mockJavaCoreHelper;
+    
+    // Feature collaborators
+    private BazelPluginActivator pluginActivator;
+    private BazelLaunchConfigurationDelegate launchDelegate;
 
     // Bazel/filesystem layer (some mocks, some real filesystem artifacts)
     private TestBazelWorkspaceFactory bazelWorkspaceFactory;
@@ -98,10 +102,13 @@ public class MockEclipse {
         this.mockPrefsStore.strings.put( BazelPreferencePage.BAZEL_PATH_PREF_NAME, 
             this.bazelCommandEnvironment.bazelExecutable.getAbsolutePath());
 
+        // feature collaborators
+        this.pluginActivator = new BazelPluginActivator();
+        this.launchDelegate = new BazelLaunchConfigurationDelegate();
+
         // initialize our plugins/feature with all the mock infrastructure
         // this simulates how our feature starts up when run inside of Eclipse
-        BazelPluginActivator activator = new BazelPluginActivator();
-        activator.startInternal(this.bazelCommandEnvironment.bazelAspectLocation, 
+        this.pluginActivator.startInternal(this.bazelCommandEnvironment.bazelAspectLocation, 
             this.bazelCommandEnvironment.commandBuilder, this.bazelCommandEnvironment.commandConsole, 
             mockResourceHelper, mockJavaCoreHelper);
         
@@ -112,6 +119,20 @@ public class MockEclipse {
     
     
     // GETTERS
+
+    // File system provisioning
+    
+    public TestBazelWorkspaceFactory getBazelWorkspaceCreator() {
+        return this.bazelWorkspaceFactory;
+    }
+    
+    public void setBazelWorkspaceCreator(TestBazelWorkspaceFactory creator) {
+        this.bazelWorkspaceFactory = creator;
+    }
+    
+    public TestBazelCommandEnvironmentFactory getBazelCommandEnvironmentFactory() {
+        return this.bazelCommandEnvironment;
+    }
 
     // File system
     
@@ -141,8 +162,12 @@ public class MockEclipse {
 
     // Mock Objects
     
-    public MockJavaCoreHelper getJavaCoreHelper() {
+    public MockJavaCoreHelper getMockJavaCoreHelper() {
         return this.mockJavaCoreHelper;
+    }
+    
+    public MockResourceHelper getMockResourceHelper() {
+        return this.mockResourceHelper;
     }
     
     public MockIEclipsePreferences getMockPrefs() {
@@ -169,6 +194,20 @@ public class MockEclipse {
         return this.mockIProjectFactory;
     }
     
+    
+    // INTERNAL FEATURE COLLABORATORS
+    
+    public BazelPluginActivator getPluginActivator() {
+        return this.pluginActivator;
+    }
+    
+    public BazelLaunchConfigurationDelegate getLaunchDelegate() {
+        return this.launchDelegate;
+    }
+    
+    
+    // INTERNAL STATE
+
     public List<IProject> getImportedProjectsList() {
         return this.importedProjectsList;
     }
@@ -187,11 +226,4 @@ public class MockEclipse {
         this.importedProjectsList = importedProjectsList;
     }
 
-    public TestBazelWorkspaceFactory getBazelWorkspaceCreator() {
-        return this.bazelWorkspaceFactory;
-    }
-    
-    public void setBazelWorkspaceCreator(TestBazelWorkspaceFactory creator) {
-        this.bazelWorkspaceFactory = creator;
-    }
 }

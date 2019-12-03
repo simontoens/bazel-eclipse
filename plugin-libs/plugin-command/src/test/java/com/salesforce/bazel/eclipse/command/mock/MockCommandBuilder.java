@@ -107,7 +107,7 @@ public class MockCommandBuilder extends CommandBuilder {
     }
     
     // CUSTOM OUTPUT LINES
-    // If your use case invokes a commmand that will have very unique output, use these methods
+    // If your use case invokes a command that will have specific output, use these methods
     
     /**
      * Simplest way to simulate a single custom command. When you use this method, the command builder

@@ -1,5 +1,7 @@
 package com.salesforce.bazel.eclipse.runtime;
 
+import java.io.File;
+
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -11,6 +13,9 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.preferences.IScopeContext;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.IProcessFactory;
+import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.osgi.service.prefs.Preferences;
 
@@ -300,4 +305,44 @@ public interface ResourceHelper {
      * </p>
      */
     void createFolderLink(IFolder thisFolder, IPath bazelWorkspaceLocation, int updateFlags, IProgressMonitor monitor);
+    
+    /**
+     * Convenience method that performs a runtime exec on the given command line
+     * in the context of the specified working directory, and returns the
+     * resulting process. If the current runtime does not support the
+     * specification of a working directory, the status handler for error code
+     * <code>ERR_WORKING_DIRECTORY_NOT_SUPPORTED</code> is queried to see if the
+     * exec should be re-executed without specifying a working directory.
+     * From DebugPlugin.
+     *
+     * @param cmdLine the command line
+     * @param workingDirectory the working directory, or <code>null</code>
+     * @return the resulting process or <code>null</code> if the exec is
+     *  canceled
+     * @exception CoreException if the exec fails
+     * @see Runtime
+     *
+     * @since 2.1
+     */
+    public Process exec(String[] cmdLine, File workingDirectory) throws CoreException;
+    
+    /**
+     * Creates and returns a new process representing the given
+     * <code>java.lang.Process</code>. A streams proxy is created
+     * for the I/O streams in the system process. The process
+     * is added to the given launch.
+     * From DebugPlugin.
+     * <p>
+     * If the launch configuration associated with the given launch
+     * specifies a process factory, it will be used to instantiate
+     * the new process.
+     * </p>
+     * @param launch the launch the process is contained in
+     * @param process the system process to wrap
+     * @param label the label assigned to the process
+     * @return the process
+     * @see IProcess
+     * @see IProcessFactory
+     */
+    public IProcess newProcess(ILaunch launch, Process process, String label);
 }

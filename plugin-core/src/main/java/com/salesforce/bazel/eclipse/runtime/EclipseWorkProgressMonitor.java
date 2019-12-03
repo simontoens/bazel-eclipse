@@ -43,7 +43,7 @@ import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
  * <p>
  * To create a no-op monitor, pass null to the constructor.
  */
-public class EclipseWorkProgressMonitor implements WorkProgressMonitor {
+public class EclipseWorkProgressMonitor implements WorkProgressMonitor, IProgressMonitor {
 
     private final IProgressMonitor eclipseMonitor;
     private boolean isCanceled = false;
@@ -107,6 +107,20 @@ public class EclipseWorkProgressMonitor implements WorkProgressMonitor {
     public void worked(int work) {
         if (this.eclipseMonitor != null) {
             this.eclipseMonitor.worked(work);
+        }
+    }
+
+    @Override
+    public void internalWorked(double work) {
+        if (this.eclipseMonitor != null) {
+            eclipseMonitor.internalWorked(work);
+        }
+    }
+
+    @Override
+    public void setTaskName(String name) {
+        if (this.eclipseMonitor != null) {
+            eclipseMonitor.setTaskName(name);
         }
     }
 

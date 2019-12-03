@@ -17,12 +17,12 @@ import org.eclipse.debug.core.ILaunchConfigurationType;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.core.ILaunchDelegate;
 
-/**
- * Partial mock implementation of Eclipse ILaunchConfiguration
- */
-public class MockLaunchConfiguration implements ILaunchConfiguration {
+public class MockILaunchConfiguration implements ILaunchConfiguration {
+    private static final String UOE_MSG = "MockILaunchConfiguration is pay as you go, you have hit a method that is not implemented."; 
     public Map<String, Object> attributes = new TreeMap<>();
 
+    // IMPLEMENTED METHODS
+    
     @Override
     public boolean getAttribute(String attributeName, boolean defaultValue) throws CoreException {
         return (Boolean) attributes.getOrDefault(attributeName, defaultValue);
@@ -66,176 +66,169 @@ public class MockLaunchConfiguration implements ILaunchConfiguration {
     public boolean hasAttribute(String attributeName) throws CoreException {
         return attributes.containsKey(attributeName);
     }
-
-    // not mocked
+    
+    
+    // UNIMPLEMENTED METHODS
+    // Please move implemented methods, in alphabetical order, above this line if you implement a method.
 
     @Override
     public <T> T getAdapter(Class<T> adapter) {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean contentsEqual(ILaunchConfiguration configuration) {
-
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public ILaunchConfigurationWorkingCopy copy(String name) throws CoreException {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public void delete() throws CoreException {
-
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public void delete(int flag) throws CoreException {
-
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean exists() {
-
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public String getCategory() throws CoreException {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public IFile getFile() {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public IPath getLocation() {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public IResource[] getMappedResources() throws CoreException {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public String getMemento() throws CoreException {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public String getName() {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public Set<String> getModes() throws CoreException {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public ILaunchDelegate getPreferredDelegate(Set<String> modes) throws CoreException {
-
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public ILaunchConfigurationType getType() throws CoreException {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public ILaunchConfigurationWorkingCopy getWorkingCopy() throws CoreException {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean isLocal() {
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean isMigrationCandidate() throws CoreException {
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean isWorkingCopy() {
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public ILaunch launch(String mode, IProgressMonitor monitor) throws CoreException {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public ILaunch launch(String mode, IProgressMonitor monitor, boolean build) throws CoreException {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
-    public ILaunch launch(String mode, IProgressMonitor monitor, boolean build, boolean register)
-            throws CoreException {
-        return null;
+    public ILaunch launch(String mode, IProgressMonitor monitor, boolean build, boolean register) throws CoreException {
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
-    public void migrate() throws CoreException {}
+    public void migrate() throws CoreException {
+        throw new UnsupportedOperationException(UOE_MSG);
+    }
 
     @Override
     public boolean supportsMode(String mode) throws CoreException {
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean isReadOnly() {
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public ILaunchConfiguration getPrototype() throws CoreException {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean isAttributeModified(String attribute) throws CoreException {
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public boolean isPrototype() {
-        return false;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public Collection<ILaunchConfiguration> getPrototypeChildren() throws CoreException {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public int getKind() throws CoreException {
-        return 0;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
     public Set<String> getPrototypeVisibleAttributes() throws CoreException {
-        return null;
+        throw new UnsupportedOperationException(UOE_MSG);
     }
 
     @Override
-    public void setPrototypeAttributeVisibility(String attribute, boolean visible) throws CoreException {}
+    public void setPrototypeAttributeVisibility(String attribute, boolean visible) throws CoreException {
+        throw new UnsupportedOperationException(UOE_MSG);
+    }
 
 }
-

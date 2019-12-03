@@ -40,5 +40,4 @@ public class MockWorkProgressMonitor implements WorkProgressMonitor {
     public void worked(int work) {
         this.worked = work;
     }
-
 }

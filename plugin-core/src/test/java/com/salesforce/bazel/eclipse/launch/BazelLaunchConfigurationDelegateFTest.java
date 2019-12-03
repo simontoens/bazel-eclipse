@@ -1,46 +1,134 @@
 package com.salesforce.bazel.eclipse.launch;
 
-import java.util.HashMap;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
-import org.junit.Ignore;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.ILaunchConfiguration;
+import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Mockito;
+import org.junit.rules.TemporaryFolder;
 
+import com.salesforce.bazel.eclipse.command.mock.MockCommandBuilder.MockCommandSimulatedOutputMatcher;
+import com.salesforce.bazel.eclipse.command.mock.TestBazelCommandEnvironmentFactory;
 import com.salesforce.bazel.eclipse.launch.BazelLaunchConfigurationSupport.BazelLaunchConfigAttributes;
-import com.salesforce.bazel.eclipse.mock.MockLaunchConfiguration;
+import com.salesforce.bazel.eclipse.mock.EclipseFunctionalTestEnvironmentFactory;
+import com.salesforce.bazel.eclipse.mock.MockEclipse;
+import com.salesforce.bazel.eclipse.mock.MockILaunch;
+import com.salesforce.bazel.eclipse.mock.MockILaunchConfiguration;
+import com.salesforce.bazel.eclipse.mock.MockResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.EclipseWorkProgressMonitor;
 
 public class BazelLaunchConfigurationDelegateFTest {
+    @Rule
+    public TemporaryFolder tmpFolder = new TemporaryFolder();
 
     @Test
-    @Ignore // need to add Mockito and fill out delegate collaborators before we can do this.
     public void testHappyRunLaunch() throws Exception {
-        BazelLaunchConfigurationDelegate delegate = createBazelLaunchConfigurationDelegate();
-        MockLaunchConfiguration testConfig = createLaunchConfiguration();
+        // setup functional test env
+        MockEclipse mockEclipse = createMockEnvironment();
+        ILaunchConfiguration launchConfig = createLaunchConfiguration("run");
+        ILaunch launch = new MockILaunch(launchConfig);
+        IProgressMonitor progress = new EclipseWorkProgressMonitor();
+        addBazelCommandOutput(mockEclipse.getBazelCommandEnvironmentFactory(), "run", "bazel run result");
+        BazelLaunchConfigurationDelegate delegate = mockEclipse.getLaunchDelegate();
+        
+        // method under test
+        delegate.launch(launchConfig, "debug", launch, progress);
+        
+        // verify
+        MockResourceHelper mockResourceHelper = mockEclipse.getMockResourceHelper();
+        String[] cmdLine = mockResourceHelper.lastExecCommandLine;
+        assertTrue(cmdLine[0].contains("bazel"));
+        assertEquals("run", cmdLine[1]);
+        assertTrue(cmdLine[2].contains("dt_socket"));
+        assertTrue(cmdLine[3].contains("testvalue"));
+        assertTrue(cmdLine[4].contains("testvalue"));
+        assertTrue(cmdLine[5].contains("testvalue"));
+        assertEquals("--", cmdLine[6]);
+        assertEquals("//projects/libs/javalib0", cmdLine[7]);
+    }
 
-        delegate.launch(testConfig, "run", null, null);
+    @Test
+    public void testHappyTestLaunch() throws Exception {
+        // setup functional test env
+        MockEclipse mockEclipse = createMockEnvironment();
+        ILaunchConfiguration launchConfig = createLaunchConfiguration("test");
+        ILaunch launch = new MockILaunch(launchConfig);
+        IProgressMonitor progress = new EclipseWorkProgressMonitor();
+        addBazelCommandOutput(mockEclipse.getBazelCommandEnvironmentFactory(), "test", "bazel test result");
+        BazelLaunchConfigurationDelegate delegate = mockEclipse.getLaunchDelegate();
+        
+        // method under test
+        delegate.launch(launchConfig, "debug", launch, progress);
+
+        // verify
+        MockResourceHelper mockResourceHelper = mockEclipse.getMockResourceHelper();
+        String[] cmdLine = mockResourceHelper.lastExecCommandLine;
+        assertTrue(cmdLine[0].contains("bazel"));
+        assertEquals("test", cmdLine[1]);
+        assertTrue(cmdLine[2].contains("test_output"));
+        // there are a bunch of other flags passed as well 3-8
+        assertTrue(cmdLine[9].contains("testvalue"));
+        assertTrue(cmdLine[10].contains("testvalue"));
+        assertTrue(cmdLine[11].contains("testvalue"));
+        assertEquals("--", cmdLine[12]);
+        assertEquals("//projects/libs/javalib0", cmdLine[13]);
     }
 
     // HELPERS
 
-    private BazelLaunchConfigurationDelegate createBazelLaunchConfigurationDelegate() {
-        return Mockito.mock(BazelLaunchConfigurationDelegate.class);
+    private MockEclipse createMockEnvironment() throws Exception {
+        File testTempDir = tmpFolder.newFolder();
+        
+        // during test development, it can be useful to have a stable location on disk for the Bazel workspace contents
+        //testTempDir = new File("/tmp/bef/bazelws");
+        //testTempDir.mkdirs();
+
+        // create the mock Eclipse runtime in the correct state
+        int numberOfJavaPackages = 2;
+        boolean computeClasspaths = true; 
+        MockEclipse mockEclipse = EclipseFunctionalTestEnvironmentFactory.createMockEnvironment_Imported_All_JavaPackages(testTempDir, numberOfJavaPackages, computeClasspaths);
+        
+        return mockEclipse;
     }
 
-    private MockLaunchConfiguration createLaunchConfiguration() {
-        MockLaunchConfiguration testConfig = new MockLaunchConfiguration();
-        testConfig.attributes.put(BazelLaunchConfigAttributes.PROJECT.getAttributeName(), "MyTestProject");
+    private MockILaunchConfiguration createLaunchConfiguration(String verb) {
+        MockILaunchConfiguration testConfig = new MockILaunchConfiguration();
+        testConfig.attributes.put(BazelLaunchConfigAttributes.PROJECT.getAttributeName(), "javalib0");
         testConfig.attributes.put(BazelLaunchConfigAttributes.LABEL.getAttributeName(),
-            "//projects/services/testproject");
-        testConfig.attributes.put(BazelLaunchConfigAttributes.TARGET_KIND.getAttributeName(), "java_test");
+            "//projects/libs/javalib0");
+        if ("test".equals(verb)) {
+            testConfig.attributes.put(BazelLaunchConfigAttributes.TARGET_KIND.getAttributeName(), "java_test");
+        } else if ("run".equals(verb)) {
+            testConfig.attributes.put(BazelLaunchConfigAttributes.TARGET_KIND.getAttributeName(), "java_binary");
+        }
 
-        Map<String, String> args = new HashMap<>();
-        args.put("arg1", "argvalue1");
-        args.put("arg2", "argvalue2");
-        args.put("arg3", "argvalue3");
+        Map<String, String> args = new TreeMap<>();
+        args.put("arg1", "testvalue1");
+        args.put("arg2", "testvalue2");
+        args.put("arg3", "testvalue3");
         testConfig.attributes.put(BazelLaunchConfigAttributes.INTERNAL_BAZEL_ARGS.getAttributeName(), args);
 
         return testConfig;
     }
 
+    private void addBazelCommandOutput(TestBazelCommandEnvironmentFactory env, String verb, String resultLine) {
+        List<String> outputLines = new ArrayList<>();
+        outputLines.add(resultLine);
+        List<String> errorLines = new ArrayList<>();
+        
+        // create a matcher such that the resultLine is only returned if a command uses the specific verb
+        List<MockCommandSimulatedOutputMatcher> matchers = new ArrayList<>();
+        matchers.add(new MockCommandSimulatedOutputMatcher(0, verb));
+        
+        env.commandBuilder.addSimulatedOutput("launcherbuildertest", outputLines, errorLines, matchers);
+    }
 }

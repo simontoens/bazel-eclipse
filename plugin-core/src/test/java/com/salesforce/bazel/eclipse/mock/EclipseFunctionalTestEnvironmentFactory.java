@@ -75,7 +75,7 @@ public class EclipseFunctionalTestEnvironmentFactory {
         // do you want to simulate Eclipse calling getClasspath on the classpath container for each project?
         if (computeClasspaths) {
             for (IProject project : importedProjectsList) {
-                JavaCoreHelper javaHelper = mockEclipse.getJavaCoreHelper();
+                JavaCoreHelper javaHelper = mockEclipse.getMockJavaCoreHelper();
                 javaHelper.getResolvedClasspath(javaHelper.getJavaProjectForProject(project), false);
             }
         }

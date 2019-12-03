@@ -33,6 +33,7 @@
  */
 package com.salesforce.bazel.eclipse.launch;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Collections;
@@ -42,7 +43,6 @@ import java.util.Map;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchManager;
@@ -50,6 +50,7 @@ import org.eclipse.debug.core.IStreamListener;
 import org.eclipse.debug.core.model.ILaunchConfigurationDelegate;
 import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.debug.core.model.IStreamMonitor;
+import org.eclipse.debug.core.model.IStreamsProxy;
 import org.eclipse.debug.core.sourcelookup.ISourceLookupDirector;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.launching.IVMConnector;
@@ -64,6 +65,7 @@ import com.salesforce.bazel.eclipse.launch.BazelLaunchConfigurationSupport.Bazel
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.TargetKind;
+import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
 
 /**
  * Runs a previously configured Bazel target.
@@ -92,7 +94,7 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
         BazelLabel label = new BazelLabel(getAttributeValue(configuration, BazelLaunchConfigAttributes.LABEL));
         String targetKindStr = getAttributeValueWithDefault(configuration, BazelLaunchConfigAttributes.TARGET_KIND, "java_binary");
         TargetKind targetKind = TargetKind.valueOfIgnoresCaseRequiresMatch(targetKindStr);
-        IProject project = getProject(projectName);
+        IProject project = BazelPluginActivator.getResourceHelper().getProjectByName(projectName);
         BazelWorkspaceCommandRunner bazelCommandRunner = BazelPluginActivator.getInstance().getWorkspaceCommandRunner();
 
         Command cmd = bazelCommandRunner.getBazelLauncherBuilder().setLabel(label).setTargetKind(targetKind).setArgs(bazelArgs)
@@ -108,22 +110,32 @@ public class BazelLaunchConfigurationDelegate implements ILaunchConfigurationDel
     // OVERRIDABLE FOR TESTS
 
     protected IProject getProject(String projectName) {
-        return BazelPluginActivator.getResourceHelper().getEclipseWorkspaceRoot().getProject(projectName);
+        return BazelPluginActivator.getResourceHelper().getProjectByName(projectName);
     }
 
     protected void launchExec(ILaunchConfiguration configuration, IProject project, List<String> commandTokens,
             BazelProcessBuilder processBuilder, ILaunch launch, IProgressMonitor monitor) throws CoreException {
-        Process process =
-                DebugPlugin.exec(commandTokens.toArray(new String[commandTokens.size()]), processBuilder.directory());
-        IProcess debugProcess = DebugPlugin.newProcess(launch, process, "Bazel Runner");
-        debugProcess.getStreamsProxy().getOutputStreamMonitor().addListener(new IStreamListener() {
-            @Override
-            public void streamAppended(String text, IStreamMonitor streamMonitor) {
-                if (text.trim().equals(DEBUG_LISTENER_MSG + DEBUG_PORT)) {
-                    connectDebugger(configuration, project, monitor, launch);
+        
+        String[] cmdLine = commandTokens.toArray(new String[commandTokens.size()]);
+        File workingDirectory = processBuilder.directory();
+        
+        ResourceHelper resourceHelper = BazelPluginActivator.getResourceHelper();
+        
+        // launch the external process, and attach to the output
+        Process process = resourceHelper.exec(cmdLine, workingDirectory);
+        IProcess debugProcess = resourceHelper.newProcess(launch, process, "Bazel Runner");
+        IStreamsProxy streamsProxy = debugProcess.getStreamsProxy();
+        if (streamsProxy != null) {
+            // in mock testing envs, streamsProxy will be null
+            streamsProxy.getOutputStreamMonitor().addListener(new IStreamListener() {
+                @Override
+                public void streamAppended(String text, IStreamMonitor streamMonitor) {
+                    if (text.trim().equals(DEBUG_LISTENER_MSG + DEBUG_PORT)) {
+                        connectDebugger(configuration, project, monitor, launch);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     // INTERNAL

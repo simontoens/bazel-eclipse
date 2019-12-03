@@ -1,5 +1,7 @@
 package com.salesforce.bazel.eclipse.runtime;
 
+import java.io.File;
+
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -13,6 +15,9 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.preferences.IScopeContext;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.model.IProcess;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.osgi.service.prefs.Preferences;
 
@@ -159,5 +164,14 @@ public class EclipseResourceHelper implements ResourceHelper {
         } catch (Exception anyE) {
             throw new IllegalArgumentException(anyE);
         }
+    }
+    @Override
+    public Process exec(String[] cmdLine, File workingDirectory) throws CoreException {
+        return DebugPlugin.exec(cmdLine, workingDirectory);
+    }
+    
+    @Override
+    public IProcess newProcess(ILaunch launch, Process process, String label) {
+        return DebugPlugin.newProcess(launch, process, label);
     }
 }
