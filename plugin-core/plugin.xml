@@ -113,7 +113,7 @@
     <shortcut
         class="com.salesforce.bazel.eclipse.launch.BazelTargetLaunchShortcut"
         category="com.salesforce.bazel.eclipse.launch"
-        icon="icons/bazelicon.png"
+        icon="resources/bazelicon.png"
         id="com.salesforce.bazel.eclipse.launch.shortcut"
         label="Bazel Target"
         modes="run, debug">
@@ -145,7 +145,7 @@
     <shortcut
         class="com.salesforce.bazel.eclipse.launch.BazelJunitTargetLaunchShortcut"
         category="com.salesforce.bazel.eclipse.launch"
-        icon="icons/bazelicon.png"
+        icon="resources/bazelicon.png"
         id="com.salesforce.bazel.eclipse.launch.junit.shortcut"
         label="JUnit Bazel Target"
         modes="run, debug">
@@ -188,7 +188,7 @@
    <extension point="org.eclipse.ui.bindings">
      <key 
          sequence="M1+M3+X B"
-         contextId="org.eclipse.ui.globalScope"
+         contextId="org.eclipse.ui.contexts.window"
          commandId="com.salesforce.bazel.eclipse.launch.shortcut.run"
          schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
    </extension>
@@ -196,7 +196,7 @@
    <extension point="org.eclipse.ui.commands">
       <command
             name="Bazel Target"
-            categoryId="org.eclipse.debug.ui.category.debug"
+            categoryId="org.eclipse.debug.ui.category.run"
             id="com.salesforce.bazel.eclipse.launch.shortcut.debug" />
    </extension>
    <extension point="org.eclipse.ui.bindings">
@@ -206,7 +206,7 @@
          platforms="gtk,motif" />
     <key 
          sequence="M4+M1+M3+D B"
-         contextId="org.eclipse.ui.globalScope"
+         contextId="org.eclipse.ui.contexts.window"
          commandId="com.salesforce.bazel.eclipse.launch.shortcut.debug"
          schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
    </extension>
