@@ -73,8 +73,8 @@ import com.salesforce.bazel.eclipse.config.BazelEclipseProjectSupport;
 import com.salesforce.bazel.eclipse.model.AspectOutputJars;
 import com.salesforce.bazel.eclipse.model.AspectPackageInfo;
 import com.salesforce.bazel.eclipse.model.BazelMarkerDetails;
-import com.salesforce.bazel.eclipse.runtime.EclipseWorkProgressMonitor;
-import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.api.ResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.impl.EclipseWorkProgressMonitor;
 
 /**
  * Computes the classpath for a Bazel package and provides it to the JDT tooling in Eclipse.

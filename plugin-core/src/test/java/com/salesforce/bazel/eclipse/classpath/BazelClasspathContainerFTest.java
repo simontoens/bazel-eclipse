@@ -52,8 +52,8 @@ import org.junit.rules.TemporaryFolder;
 
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.mock.MockEclipse;
+import com.salesforce.bazel.eclipse.runtime.api.JavaCoreHelper;
 import com.salesforce.bazel.eclipse.mock.EclipseFunctionalTestEnvironmentFactory;
-import com.salesforce.bazel.eclipse.runtime.JavaCoreHelper;
 
 public class BazelClasspathContainerFTest {
     @Rule

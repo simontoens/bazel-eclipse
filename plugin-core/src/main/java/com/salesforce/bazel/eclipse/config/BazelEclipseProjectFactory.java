@@ -76,7 +76,7 @@ import com.salesforce.bazel.eclipse.model.AspectPackageInfo;
 import com.salesforce.bazel.eclipse.model.AspectPackageInfos;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.BazelPackageInfo;
-import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.api.ResourceHelper;
 
 /**
  * A factory class to create Eclipse projects from packages in a Bazel workspace.

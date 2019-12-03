@@ -34,8 +34,8 @@ import org.eclipse.core.resources.IProject;
 import com.salesforce.bazel.eclipse.config.BazelEclipseProjectFactory;
 import com.salesforce.bazel.eclipse.importer.BazelProjectImportScanner;
 import com.salesforce.bazel.eclipse.model.BazelPackageInfo;
-import com.salesforce.bazel.eclipse.runtime.EclipseWorkProgressMonitor;
-import com.salesforce.bazel.eclipse.runtime.JavaCoreHelper;
+import com.salesforce.bazel.eclipse.runtime.api.JavaCoreHelper;
+import com.salesforce.bazel.eclipse.runtime.impl.EclipseWorkProgressMonitor;
 import com.salesforce.bazel.eclipse.test.TestBazelWorkspaceFactory;
 
 /**

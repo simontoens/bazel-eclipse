@@ -37,7 +37,7 @@ import org.eclipse.jdt.core.IJavaModel;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
 
-import com.salesforce.bazel.eclipse.runtime.JavaCoreHelper;
+import com.salesforce.bazel.eclipse.runtime.api.JavaCoreHelper;
 
 public class MockJavaCoreHelper implements JavaCoreHelper {
     private static final String UOE_MSG = "MockJavaCoreHelper is pay as you go, you have hit a method that is not implemented."; 

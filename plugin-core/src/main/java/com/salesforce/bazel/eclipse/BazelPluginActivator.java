@@ -52,11 +52,11 @@ import com.salesforce.bazel.eclipse.command.shell.ShellCommandBuilder;
 import com.salesforce.bazel.eclipse.config.BazelAspectLocationImpl;
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.preferences.BazelPreferencePage;
-import com.salesforce.bazel.eclipse.runtime.EclipseConsole;
-import com.salesforce.bazel.eclipse.runtime.EclipseJavaCoreHelper;
-import com.salesforce.bazel.eclipse.runtime.EclipseResourceHelper;
-import com.salesforce.bazel.eclipse.runtime.JavaCoreHelper;
-import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.api.JavaCoreHelper;
+import com.salesforce.bazel.eclipse.runtime.api.ResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.impl.EclipseConsole;
+import com.salesforce.bazel.eclipse.runtime.impl.EclipseJavaCoreHelper;
+import com.salesforce.bazel.eclipse.runtime.impl.EclipseResourceHelper;
 
 /**
  * The activator class controls the Bazel Eclipse plugin life cycle

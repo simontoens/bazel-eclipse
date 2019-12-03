@@ -65,7 +65,7 @@ import com.salesforce.bazel.eclipse.launch.BazelLaunchConfigurationSupport.Bazel
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.TargetKind;
-import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.api.ResourceHelper;
 
 /**
  * Runs a previously configured Bazel target.

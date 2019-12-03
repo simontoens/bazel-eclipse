@@ -69,8 +69,7 @@ import com.salesforce.bazel.eclipse.config.BazelEclipseProjectSupport;
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.model.BazelLabel;
 import com.salesforce.bazel.eclipse.model.BazelMarkerDetails;
-import com.salesforce.bazel.eclipse.runtime.BazelMarkerManagerSingleton;
-import com.salesforce.bazel.eclipse.runtime.EclipseWorkProgressMonitor;
+import com.salesforce.bazel.eclipse.runtime.impl.EclipseWorkProgressMonitor;
 
 /**
  * Project builder that calls out to Bazel to run a workspace build.

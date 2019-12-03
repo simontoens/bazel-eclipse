@@ -31,7 +31,7 @@
  * specific language governing permissions and limitations under the License.
  *
  */
-package com.salesforce.bazel.eclipse.runtime;
+package com.salesforce.bazel.eclipse.builder;
 
 import java.util.Collection;
 

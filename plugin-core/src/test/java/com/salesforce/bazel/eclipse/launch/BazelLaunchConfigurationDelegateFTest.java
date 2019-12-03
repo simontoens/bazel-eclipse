@@ -47,7 +47,7 @@ import com.salesforce.bazel.eclipse.mock.MockEclipse;
 import com.salesforce.bazel.eclipse.mock.MockILaunch;
 import com.salesforce.bazel.eclipse.mock.MockILaunchConfiguration;
 import com.salesforce.bazel.eclipse.mock.MockResourceHelper;
-import com.salesforce.bazel.eclipse.runtime.EclipseWorkProgressMonitor;
+import com.salesforce.bazel.eclipse.runtime.impl.EclipseWorkProgressMonitor;
 
 public class BazelLaunchConfigurationDelegateFTest {
     @Rule

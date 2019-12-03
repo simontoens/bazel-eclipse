@@ -46,7 +46,7 @@ import org.mockito.Mockito;
 import org.osgi.service.prefs.Preferences;
 
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
-import com.salesforce.bazel.eclipse.runtime.ResourceHelper;
+import com.salesforce.bazel.eclipse.runtime.api.ResourceHelper;
 
 public class MockResourceHelper implements ResourceHelper {
     
