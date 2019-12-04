@@ -113,7 +113,7 @@
     <shortcut
         class="com.salesforce.bazel.eclipse.launch.BazelTargetLaunchShortcut"
         category="com.salesforce.bazel.eclipse.launch"
-        icon="resources/bazelicon.png"
+        icon="resources/bazelicon.gif"
         id="com.salesforce.bazel.eclipse.launch.shortcut"
         label="Bazel Target"
         modes="run, debug">
@@ -145,7 +145,7 @@
     <shortcut
         class="com.salesforce.bazel.eclipse.launch.BazelJunitTargetLaunchShortcut"
         category="com.salesforce.bazel.eclipse.launch"
-        icon="resources/bazelicon.png"
+        icon="resources/bazelicon.gif"
         id="com.salesforce.bazel.eclipse.launch.junit.shortcut"
         label="JUnit Bazel Target"
         modes="run, debug">
