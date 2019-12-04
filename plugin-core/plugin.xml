@@ -112,7 +112,6 @@
     point="org.eclipse.debug.ui.launchShortcuts">
     <shortcut
         class="com.salesforce.bazel.eclipse.launch.BazelTargetLaunchShortcut"
-        category="com.salesforce.bazel.eclipse.launch"
         icon="resources/bazelicon.gif"
         id="com.salesforce.bazel.eclipse.launch.shortcut"
         label="Bazel Target"
@@ -144,7 +143,6 @@
     </shortcut>
     <shortcut
         class="com.salesforce.bazel.eclipse.launch.BazelJunitTargetLaunchShortcut"
-        category="com.salesforce.bazel.eclipse.launch"
         icon="resources/bazelicon.gif"
         id="com.salesforce.bazel.eclipse.launch.junit.shortcut"
         label="JUnit Bazel Target"
