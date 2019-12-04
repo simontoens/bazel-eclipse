@@ -15,7 +15,7 @@ eclipse_plugin(
     version = VERSION,
     visibility = ["//visibility:public"],
     # include this p2.inf entry only if you want to manually control the contents of this file, otherwise it is auto generated
-    classpath_resources = ['META-INF/p2.inf'],
+    classpath_resources = ['META-INF/p2.inf', 'plugin.xml'],
     deps = [
         "//plugin-libs/plugin-abstractions",
         "//plugin-libs/plugin-command",

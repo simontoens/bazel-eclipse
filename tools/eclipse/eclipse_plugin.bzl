@@ -73,7 +73,6 @@ EOF
       # should move that to the BUILD file to avoid surprise?
   classpath_resources = [
       ":%s/.api_description" % name,
-      "plugin.xml",
   ] + (kwargs["classpath_resources"] if "classpath_resources" in kwargs else [])
 
   # RESOURCES
