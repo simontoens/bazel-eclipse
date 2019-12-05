@@ -118,6 +118,7 @@ To export the .zip archive of feature, follow these steps:
 - Choose *Export...*
 - Choose *Plug-in Development* > *Deployable features*
 - Make sure the Bazel feature is selected, and choose an output location for the *Archive File* option
+- **Choose the category**: this step is easy to miss, but [creates a problem for the users](https://github.com/salesforce/bazel-eclipse/issues/9) if you skip. Switch to the *Options* tab, and click the *Browse* button for category. Choose *category.xml - Bazel Eclipse Feature* option. 
 - Click *Finish*
 
 After a little while, it should write out the .zip file successfully.
