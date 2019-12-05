@@ -83,7 +83,7 @@ public class BazelProjectConfigurator implements ProjectConfigurator {
         return buildFileLocations;
     }
 
-    // TODO our workspace scanner is looking for Java packages, but uses primitive techniques. figure out how to use the aspect
+    // TODO our workspace scanner is looking for Java packages, but uses primitive techniques. switch to use the aspect
     // approach here, like we do with the classpath computation. 
     private void findBuildFileLocations(File dir, IProgressMonitor monitor, Set<File> buildFileLocations, int depth) {
         if (!dir.isDirectory()) {
