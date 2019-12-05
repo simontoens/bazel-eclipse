@@ -58,24 +58,25 @@ The term refers to packages in Bazel with these characteristics:
 
 - represent a logical 'module' of functionality (akin to a Maven module)
 - source code is written in Java
-- contain a single top-level module BUILD file (akin to the pom.xml)
 - the package is not rooted directly in the workspace directory (i.e. beside the WORKSPACE file) but in a subdirectory
-- the BUILD file contains at least one *java_library* target
-- the BUILD file may also contain zero or more *java_binary* and *java_test* targets
-- there are no conflicting versions of upstream dependencies in the java targets in the module BUILD file (e.g. Guava 15, 25)
-- *java_test* rule(s) follow a naming convention: the rule name(s) must end in *test* or *Test*
-- *src/main/java* contains the library source code to be packaged in the jar
-- *src/main/resources* contains resources to be packaged in the jar
-- *src/test/java* contains the test code
-- *src/test/resources* contains resources to be used by tests
-- no other Java source code outside of those locations exists within the package
-- all *.java* files in the project are meant to be compiled (i.e. has globby \*\*/\*.java in BUILD)
-- all *.java* tests in the project are meant to be run (i.e. has globby \*\*/\*Test.java in BUILD), although @Ignore annotations in the tests will be honored
+- contains a single top-level module BUILD file (akin to the pom.xml)
+  - the BUILD file contains at least one *java_library* target
+  - the BUILD file may also contain zero or more *java_binary* and *java_test* targets
+  - there are no conflicting versions of upstream dependencies in the java targets in the module BUILD file (e.g. Guava 15, 25)
+- source files are in standard locations
+  - *src/main/java* contains the library source code to be packaged in the jar
+  - *src/main/resources* contains resources to be packaged in the jar
+  - *src/test/java* contains the test code
+  - *src/test/resources* contains resources to be used by tests
+  - no other Java source code outside of those locations exists within the package
+- all Java files are 'active'
+  - all *.java* files in the project are meant to be compiled (i.e. has globby \*\*/\*.java in BUILD)
+  - all *.java* tests in the project are meant to be run (i.e. has globby \*\*/\*Test.java in BUILD), although @Ignore annotations in the tests will be honored
 
 While these conditions impose some restrictions, these greatly simplify the development of the IDE feature.
 Over time, we hope to reduce these restrictions.
 See the [BEF project planning epics](https://github.com/salesforce/bazel-eclipse/projects) for more information, especially these issues:
 
-- [Relax src/main/java and src/test/java package layout requirements](https://github.com/salesforce/bazel-eclipse/issues/8)
+- [Relax src/main/... and src/test/... package layout requirements](https://github.com/salesforce/bazel-eclipse/issues/8)
 - [Support Bazel Java modules with multiple BUILD files](https://github.com/salesforce/bazel-eclipse/issues/24)
 - [Support multiple classpaths within a Java Eclipse project](https://github.com/salesforce/bazel-eclipse/issues/23)
