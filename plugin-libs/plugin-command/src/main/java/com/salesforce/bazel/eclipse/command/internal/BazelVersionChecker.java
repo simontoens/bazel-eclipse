@@ -47,8 +47,10 @@ public class BazelVersionChecker {
     /**
      * Minimum bazel version needed to work with this plugin (currently 1.0.0)
      */
+    public static final String MINIMUM_BAZEL_VERSION_STR = "1.0.0";
     public static final int[] MINIMUM_BAZEL_VERSION = { 1, 0, 0 };
 
+    // matcher for a 3 digit version string, should not need to change
     private static final Pattern VERSION_PATTERN = Pattern.compile("^([0-9]+)\\.([0-9]+)\\.([0-9]+)([^0-9].*)?$");
 
     public BazelVersionChecker(CommandBuilder commandBuilder) {
@@ -87,29 +89,30 @@ public class BazelVersionChecker {
             }
             List<String> resultLines = command.getSelectedOutputLines();
             if (resultLines.size() == 0) {
-                throw new BazelCommandLineToolConfigurationException.BazelTooOldException("unknown",
+                throw new BazelCommandLineToolConfigurationException.BazelTooOldException("unknown", MINIMUM_BAZEL_VERSION_STR,
                     bazelExecutable.getAbsolutePath());
             }
-            String version = null;
+            String version = "unknown";
+            Matcher versionMatcher = null;
             for (String resultLine : resultLines) {
                 if (resultLine.startsWith("Build label")) {
                     version = resultLine.substring(13);
+                    versionMatcher = VERSION_PATTERN.matcher(version);
+                    break;
+                } else if (VERSION_PATTERN.matcher(resultLine).matches()) {
+                    version = resultLine;
+                    versionMatcher = VERSION_PATTERN.matcher(resultLine);
                     break;
                 }
             }
-            if (version == null) {
-                throw new BazelCommandLineToolConfigurationException.BazelTooOldException("unknown",
-                    bazelExecutable.getAbsolutePath());
-            }
-            Matcher versionMatcher = VERSION_PATTERN.matcher(version);
             if (versionMatcher == null || !versionMatcher.matches()) {
-                throw new BazelCommandLineToolConfigurationException.BazelTooOldException(version,
+                throw new BazelCommandLineToolConfigurationException.BazelTooOldException(version, MINIMUM_BAZEL_VERSION_STR,
                     bazelExecutable.getAbsolutePath());
             }
             int[] versionNumbers = { Integer.parseInt(versionMatcher.group(1)),
                     Integer.parseInt(versionMatcher.group(2)), Integer.parseInt(versionMatcher.group(3)) };
             if (compareVersion(versionNumbers, MINIMUM_BAZEL_VERSION) < 0) {
-                throw new BazelCommandLineToolConfigurationException.BazelTooOldException(version,
+                throw new BazelCommandLineToolConfigurationException.BazelTooOldException(version, MINIMUM_BAZEL_VERSION_STR,
                     bazelExecutable.getAbsolutePath());
             }
         } catch (IOException | InterruptedException e) {

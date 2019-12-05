@@ -166,7 +166,7 @@ public class MockCommandBuilder extends CommandBuilder {
     public Command build_impl() throws IOException {
         MockCommand mockCommand = new MockCommand();
         
-        mockCommand.commandTokens = args.build();
+        mockCommand.commandTokens = args;
         String commandPretty = "";
         for (String token : mockCommand.commandTokens) {
             commandPretty = commandPretty + token + " ";

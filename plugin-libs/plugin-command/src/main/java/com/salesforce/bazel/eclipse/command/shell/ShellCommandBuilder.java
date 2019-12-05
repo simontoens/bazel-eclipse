@@ -49,11 +49,11 @@ public class ShellCommandBuilder extends CommandBuilder {
      */
     public ShellCommand build_impl() throws IOException {
         Preconditions.checkNotNull(directory);
-        ImmutableList<String> args = this.args.build();
+        ImmutableList<String> iargs = ImmutableList.copyOf(this.args); 
         CommandConsole console = consoleName == null ? null : consoleFactory.get(consoleName,
             "Running " + String.join(" ", args) + " from " + directory.toString());
         
-        ShellCommand command = new ShellCommand(console, directory, args, stdoutSelector, stderrSelector, stdout, stderr,
+        ShellCommand command = new ShellCommand(console, directory, iargs, stdoutSelector, stderrSelector, stdout, stderr,
             progressMonitor, timeoutMS);
         
         return command;

@@ -34,9 +34,8 @@ Consult [this doc](mac_eclipse_jdk.md) if your Eclipse fails to launch on Mac.
 The Bazel Eclipse Feature does not come with an embedded install of Bazel.
 You must have Bazel installed on your machine and in your shell path.
 
-The [WORKSPACE file](../WORKSPACE) has a version check which is run when building the Bazel Eclipse Feature.
-While you can diverge from this version when *using* the Bazel Eclipse Feature, it is a good hint as to what
-  Bazel version will work with the Bazel Eclipse Feature.
+The [BazelVersionChecker](../plugin-libs/plugin-command/src/main/java/com/salesforce/bazel/eclipse/command/internal/BazelVersionChecker.java) has a version check when setting the Bazel executable in the Eclipse preferences.
+Choose a version of Bazel that is at least as high as that check.
 
 ### Installing the Bazel Eclipse feature into Eclipse
 

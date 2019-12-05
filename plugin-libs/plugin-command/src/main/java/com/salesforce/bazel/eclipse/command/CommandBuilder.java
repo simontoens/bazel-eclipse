@@ -26,9 +26,11 @@ package com.salesforce.bazel.eclipse.command;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 
-import com.google.common.collect.ImmutableList;
 import com.salesforce.bazel.eclipse.abstractions.CommandConsoleFactory;
 import com.salesforce.bazel.eclipse.abstractions.WorkProgressMonitor;
 
@@ -48,7 +50,7 @@ public abstract class CommandBuilder {
 
     protected String consoleName = null;
     protected File directory;
-    protected ImmutableList.Builder<String> args;
+    protected List<String> args;
     protected OutputStream stdout = null;
     protected OutputStream stderr = null;
     protected Function<String, String> stdoutSelector;
@@ -68,7 +70,7 @@ public abstract class CommandBuilder {
         this.consoleName = null;
         // Default to the current working directory
         this.directory = new File(System.getProperty("user.dir"));
-        this.args = ImmutableList.builder();
+        this.args = new ArrayList<>();
         this.stdout = null;
         this.stderr = null;
         this.stdoutSelector = null;
@@ -129,7 +131,7 @@ public abstract class CommandBuilder {
      * Add arguments to the command line. The first argument to be added to the builder is the program name.
      */
     public CommandBuilder addArguments(String... args) {
-        this.args.add(args);
+        this.args.addAll(Arrays.asList(args));
         return this;
     }
 
@@ -138,7 +140,9 @@ public abstract class CommandBuilder {
      * name.
      */
     public CommandBuilder addArguments(Iterable<String> args) {
-        this.args.addAll(args);
+        for (String arg : args) {
+            this.args.add(arg);
+        }
         return this;
     }
 
