@@ -140,3 +140,4 @@ Normally these are hosted on a web server somewhere.
 But for convenience you can also build and install an update site zip file (aka an Eclipse feature archive).
 
 As covered in our [build system doc](threebuilds.md) we currently use the Eclipse SDK *Export...* for creating the update site for the feature.
+See that document for the list of steps to follow to create the update site zip file.

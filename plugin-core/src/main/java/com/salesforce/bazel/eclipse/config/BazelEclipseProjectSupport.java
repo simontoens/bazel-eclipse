@@ -38,12 +38,8 @@ import java.util.List;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.preferences.IScopeContext;
 import org.eclipse.jdt.core.IJavaProject;
-import org.osgi.service.prefs.BackingStoreException;
-import org.osgi.service.prefs.Preferences;
 
-import com.google.common.collect.ImmutableList;
 import com.salesforce.bazel.eclipse.BazelNature;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 
@@ -51,36 +47,6 @@ import com.salesforce.bazel.eclipse.BazelPluginActivator;
  * Support class that provides interaction methods for existing Eclipse Bazel projects.
  */
 public class BazelEclipseProjectSupport {
-    static final String WORKSPACE_ROOT_PROPERTY = "bazel.workspace.root";
-    static final String TARGET_PROPERTY_PREFIX = "bazel.target";
-    static final String BUILDFLAG_PROPERTY_PREFIX = "bazel.build.flag";
-
-    /**
-     * List the Bazel targets configured for this Eclipse project. Each project configured for Bazel is configured to
-     * track certain targets and this function fetches this list from the project preferences.
-     */
-    public static List<String> getBazelTargetsForEclipseProject(IProject eclipseProject, boolean addWildcardIfNoTargets) {
-        // Get the list of targets from the preferences
-        Preferences eclipseProjectBazelPrefs = BazelPluginActivator.getResourceHelper().getProjectBazelPreferences(eclipseProject);
-        ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
-
-        boolean addedTarget = false;
-        for (String propertyName : getKeys(eclipseProjectBazelPrefs)) {
-            if (propertyName.startsWith(TARGET_PROPERTY_PREFIX)) {
-                String target = eclipseProjectBazelPrefs.get(propertyName, "");
-                if (!"//...".equals(target) && !target.isEmpty()) {
-                    listBuilder.add(target);
-                    addedTarget = true;
-                }
-            }
-        }
-
-        if (!addedTarget && addWildcardIfNoTargets) {
-            listBuilder.add("//...");
-        }
-
-        return listBuilder.build();
-    }
     
     /**
      * Returns all Java Projects that have a Bazel Nature.
@@ -96,32 +62,6 @@ public class BazelEclipseProjectSupport {
         return bazelProjects.toArray(new IJavaProject[bazelProjects.size()]);
     }
 
-    /**
-     * List of Bazel build flags for this Eclipse project, taken from the project configuration
-     */
-    public static List<String> getBazelBuildFlagsForEclipseProject(IProject eclipseProject) {
-        // Get the list of build flags from the preferences
-        IScopeContext eclipseProjectScope = BazelPluginActivator.getResourceHelper().getProjectScopeContext(eclipseProject);
-        Preferences eclipseProjectNode = eclipseProjectScope.getNode(BazelPluginActivator.PLUGIN_ID);
-        
-        ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
-        for (String property : getKeys(eclipseProjectNode)) {
-            if (property.startsWith(BUILDFLAG_PROPERTY_PREFIX)) {
-                listBuilder.add(eclipseProjectNode.get(property, ""));
-            }
-        }
-        return listBuilder.build();
-    }
-
-    // HELPERS
-    
-    private static String[] getKeys(Preferences prefs) {
-        try {
-            return prefs.keys();
-        } catch (BackingStoreException ex) {
-            throw new IllegalStateException(ex);
-        }
-    }
 
     private static boolean isBazelProject(IProject project) {
         try {

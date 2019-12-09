@@ -50,6 +50,7 @@ import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
 import com.salesforce.bazel.eclipse.command.CommandBuilder;
 import com.salesforce.bazel.eclipse.command.shell.ShellCommandBuilder;
 import com.salesforce.bazel.eclipse.config.BazelAspectLocationImpl;
+import com.salesforce.bazel.eclipse.config.BazelProjectPreferences;
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.preferences.BazelPreferencePage;
 import com.salesforce.bazel.eclipse.runtime.api.JavaCoreHelper;
@@ -68,9 +69,6 @@ public class BazelPluginActivator extends AbstractUIPlugin {
 
     // The plug-in ID
     public static final String PLUGIN_ID = "com.salesforce.bazel.eclipse.core"; //$NON-NLS-1$
-
-    // The preference key for the bazel workspace root path
-    public static final String BAZEL_WORKSPACE_PATH_PREF_NAME = "bazel.workspace.root";
     
     // GLOBAL COLLABORATORS
     // TODO move the collaborators to some other place, perhaps a dedicated static context object
@@ -103,6 +101,11 @@ public class BazelPluginActivator extends AbstractUIPlugin {
      * JavaCoreHelper is a useful singleton for working with Java projects in the Eclipse workspace
      */
     private static JavaCoreHelper javaCoreHelper;
+    
+    /**
+     * Manager for reading/writing persistent preferences for the Eclipse projects
+     */
+    private static BazelProjectPreferences bazelPrefsManager;
 
     // LIFECYCLE
     
@@ -146,7 +149,8 @@ public class BazelPluginActivator extends AbstractUIPlugin {
         File bazelPathFile = new File(bazelPath);
 
         bazelCommandManager = new BazelCommandManager(aspectLocation, commandBuilder, consoleFactory, bazelPathFile);
-
+        bazelPrefsManager = new BazelProjectPreferences();
+        
         prefsStore.addPropertyChangeListener(new IPropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent event) {
@@ -156,8 +160,8 @@ public class BazelPluginActivator extends AbstractUIPlugin {
             }
         });
 
-        // Get the bazel workspace path from the settings, defaults to /usr/local/bin/bazel
-        String bazelWorkspacePathFromPrefs = prefsStore.getString(BAZEL_WORKSPACE_PATH_PREF_NAME);
+        // Get the bazel workspace path from the settings TODO test this, I suspect it is broken
+        String bazelWorkspacePathFromPrefs = prefsStore.getString(BazelProjectPreferences.BAZEL_WORKSPACE_ROOT_ABSPATH_PROPERTY);
         if (bazelWorkspacePathFromPrefs != null && !bazelWorkspacePathFromPrefs.isEmpty()) {
             this.setBazelWorkspaceRootDirectory(new File(bazelWorkspacePathFromPrefs));
         }
@@ -227,7 +231,7 @@ public class BazelPluginActivator extends AbstractUIPlugin {
 
         // write it to the preferences file
         IPreferenceStore prefsStore =  resourceHelper.getPreferenceStore(this);
-        prefsStore.setValue(BAZEL_WORKSPACE_PATH_PREF_NAME, dir.getAbsolutePath());
+        prefsStore.setValue(BazelProjectPreferences.BAZEL_WORKSPACE_ROOT_ABSPATH_PROPERTY, dir.getAbsolutePath());
     }
     
     

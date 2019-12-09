@@ -62,7 +62,8 @@ import org.osgi.framework.FrameworkUtil;
 import com.salesforce.bazel.eclipse.BazelPluginActivator;
 import com.salesforce.bazel.eclipse.command.BazelCommandManager;
 import com.salesforce.bazel.eclipse.command.BazelWorkspaceCommandRunner;
-import com.salesforce.bazel.eclipse.config.BazelEclipseProjectSupport;
+import com.salesforce.bazel.eclipse.config.EclipseProjectBazelTargets;
+import com.salesforce.bazel.eclipse.config.BazelProjectPreferences;
 
 /**
  * Provide the runtime classpath for JUnit tests. These are obtained from the test rule's generated param files that
@@ -117,7 +118,7 @@ public class BazelRuntimeClasspathProvider extends StandardClasspathProvider {
     }
 
     /**
-     * Return the classpath entries needed to run the test
+     * Return the classpath entries needed to run the launcher
      * 
      * @param configuration
      * @param isSource
@@ -138,8 +139,8 @@ public class BazelRuntimeClasspathProvider extends StandardClasspathProvider {
 
         String paramsName = testClassName.replace('.', '/') + suffix;
 
-        List<String> targets = BazelEclipseProjectSupport.getBazelTargetsForEclipseProject(project.getProject(), false);
-        for (String eachTarget : targets) {
+        EclipseProjectBazelTargets targets = BazelProjectPreferences.getConfiguredBazelTargets(project.getProject());
+        for (String eachTarget : targets.getConfiguredTargets()) {
             File paramsFile = findParamsJar(project, paramsName, eachTarget);
             if (!paramsFile.exists()) {
                 Display.getDefault().asyncExec(new Runnable() {

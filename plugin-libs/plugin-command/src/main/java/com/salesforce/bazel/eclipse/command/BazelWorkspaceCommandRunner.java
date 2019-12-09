@@ -38,10 +38,14 @@ package com.salesforce.bazel.eclipse.command;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -56,6 +60,7 @@ import com.salesforce.bazel.eclipse.command.internal.BazelWorkspaceAspectHelper;
 import com.salesforce.bazel.eclipse.logging.LogHelper;
 import com.salesforce.bazel.eclipse.logging.LoggerFacade;
 import com.salesforce.bazel.eclipse.model.AspectPackageInfo;
+import com.salesforce.bazel.eclipse.model.BazelBuildFile;
 import com.salesforce.bazel.eclipse.model.BazelMarkerDetails;
 import com.salesforce.bazel.eclipse.model.BazelOutputParser;
 
@@ -149,6 +154,12 @@ public class BazelWorkspaceCommandRunner {
      */
     private List<String> buildOptions = Collections.emptyList();
 
+    // CACHES
+    
+    /**
+     * Cache of queried BUILD files
+     */
+    private Map<String, BazelBuildFile> buildFileCache = new HashMap<>();
     
     
     // CTORS
@@ -304,16 +315,20 @@ public class BazelWorkspaceCommandRunner {
     // BUILD, BUILD INFO, RUN, TEST OPERATIONS
     
     /**
-     * Returns the list of targets found in the BUILD files for the given sub-directories. Uses Bazel Query to build the
-     * list.
-     *
-     * @param progressMonitor
-     *            can be null
-     * @throws BazelCommandLineToolConfigurationException
+     * Returns the list of targets found in the BUILD file for the given label. Uses Bazel Query to build the
+     * list. This operation is cached internally, so repeated calls in the same label are cheap.
+     * <p>
+     * @param bazelPackageName the label path that identifies the package where the BUILD file lives (//projects/libs/foo)
      */
-    public synchronized List<String> listBazelTargetsInBuildFiles(WorkProgressMonitor progressMonitor,
-            File... directories) throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
-        return this.bazelQueryHelper.listBazelTargetsInBuildFiles(bazelWorkspaceRootDirectory, progressMonitor, directories);
+    public synchronized BazelBuildFile queryBazelTargetsInBuildFile(WorkProgressMonitor progressMonitor,
+            String bazelPackageName) throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
+        BazelBuildFile buildFile = buildFileCache.get(bazelPackageName);
+        if (buildFile != null) {
+            return buildFile;
+        }
+        buildFile = this.bazelQueryHelper.queryBazelTargetsInBuildFile(bazelWorkspaceRootDirectory, progressMonitor, bazelPackageName);
+        buildFileCache.put(bazelPackageName, buildFile);
+        return buildFile;
     }
     
     /**
@@ -342,7 +357,7 @@ public class BazelWorkspaceCommandRunner {
      * @throws IOException
      * @throws BazelCommandLineToolConfigurationException
      */
-    public synchronized List<BazelMarkerDetails> runBazelBuild(List<String> bazelTargets,
+    public synchronized List<BazelMarkerDetails> runBazelBuild(Set<String> bazelTargets,
             WorkProgressMonitor progressMonitor, List<String> extraArgs)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
         List<String> extraArgsList = ImmutableList.<String> builder().add("build").addAll(this.buildOptions)
@@ -377,10 +392,32 @@ public class BazelWorkspaceCommandRunner {
      * @throws BazelCommandLineToolConfigurationException
      */
     public synchronized Map<String, AspectPackageInfo> getAspectPackageInfos(String eclipseProjectName,
-            Collection<String> targets, WorkProgressMonitor progressMonitor, String caller)
+            String targetLabel, WorkProgressMonitor progressMonitor, String caller)
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
 
-        return this.aspectHelper.getAspectPackageInfos(eclipseProjectName, targets, progressMonitor, caller);
+        List<String> targetLabels = new ArrayList<>();
+        targetLabels.add(targetLabel);
+        return this.aspectHelper.getAspectPackageInfos(eclipseProjectName, targetLabels, progressMonitor, caller);
+    }
+    
+    /**
+     * Runs the analysis of the given list of targets using the build information Bazel Aspect and returns a map of
+     * {@link AspectPackageInfo}-s (key is the label of the target) containing the parsed form of the JSON file created
+     * by the aspect.
+     * <p>
+     * This method caches its results and won't recompute a previously computed version unless
+     * {@link #flushAspectInfoCache()} has been called in between.
+     * <p>
+     * TODO it would be worthwhile to evaluate whether Aspects are the best way to get build info, as we could otherwise
+     * use Bazel Query here as well.
+     *
+     * @throws BazelCommandLineToolConfigurationException
+     */
+    public synchronized Map<String, AspectPackageInfo> getAspectPackageInfos(String eclipseProjectName,
+            Collection<String> targetLabels, WorkProgressMonitor progressMonitor, String caller)
+            throws IOException, InterruptedException, BazelCommandLineToolConfigurationException {
+
+        return this.aspectHelper.getAspectPackageInfos(eclipseProjectName, targetLabels, progressMonitor, caller);
     }
 
     /**
@@ -391,10 +428,19 @@ public class BazelWorkspaceCommandRunner {
     }
 
     /**
+     * Clear the AspectPackageInfo cache for the passed target. This flushes the dependency graph for the target.
+     */
+    public synchronized void flushAspectInfoCache(String targetLabel) {
+        Set<String> targetLabels = new TreeSet<>();
+        targetLabels.add(targetLabel);
+        this.aspectHelper.flushAspectInfoCache(targetLabels);
+    }
+
+    /**
      * Clear the AspectPackageInfo cache for the passed targets. This flushes the dependency graph for those targets.
      */
-    public synchronized void flushAspectInfoCache(List<String> targets) {
-        this.aspectHelper.flushAspectInfoCache(targets);
+    public synchronized void flushAspectInfoCache(Set<String> targetLabels) {
+        this.aspectHelper.flushAspectInfoCache(targetLabels);
     }
     
     /**

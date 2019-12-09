@@ -60,7 +60,6 @@ import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.osgi.service.prefs.BackingStoreException;
-import org.osgi.service.prefs.Preferences;
 
 import com.google.common.collect.ImmutableList;
 import com.salesforce.bazel.eclipse.BazelNature;
@@ -230,7 +229,8 @@ public class BazelEclipseProjectFactory {
         try {
             addNatureToEclipseProject(eclipseProject, BazelNature.BAZEL_NATURE_ID);
             addNatureToEclipseProject(eclipseProject, JavaCore.NATURE_ID);
-            addSettingsToEclipseProject(eclipseProject, bazelWorkspaceRoot, bazelTargets, ImmutableList.of()); // TODO pass buildFlags
+            BazelProjectPreferences.addSettingsToEclipseProject(eclipseProject, bazelWorkspaceRoot, packageFSPath, bazelTargets, 
+                ImmutableList.of()); // TODO pass buildFlags
 
             // this may throw if the user has deleted the .project file on disk while the project is open for import
             // but it will try to recover so we should catch now instead of allowing the entire flow to fail.
@@ -260,26 +260,6 @@ public class BazelEclipseProjectFactory {
         }
 
         return eclipseProject;
-    }
-
-    private static void addSettingsToEclipseProject(IProject eclipseProject, String bazelWorkspaceRoot,
-            List<String> bazelTargets, List<String> bazelBuildFlags) throws BackingStoreException {
-
-        Preferences eclipseProjectBazelPrefs =
-                BazelPluginActivator.getResourceHelper().getProjectBazelPreferences(eclipseProject);
-
-        int i = 0;
-        for (String bazelTarget : bazelTargets) {
-            eclipseProjectBazelPrefs.put(BazelEclipseProjectSupport.TARGET_PROPERTY_PREFIX + i, bazelTarget);
-            i++;
-        }
-        eclipseProjectBazelPrefs.put(BazelEclipseProjectSupport.WORKSPACE_ROOT_PROPERTY, bazelWorkspaceRoot);
-        i = 0;
-        for (String bazelBuildFlag : bazelBuildFlags) {
-            eclipseProjectBazelPrefs.put(BazelEclipseProjectSupport.BUILDFLAG_PROPERTY_PREFIX + i, bazelBuildFlag);
-            i++;
-        }
-        eclipseProjectBazelPrefs.flush();
     }
 
     private static void setBuildersOnEclipseProject(IProject eclipseProject) throws CoreException {

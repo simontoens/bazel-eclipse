@@ -241,7 +241,7 @@ public interface JavaCoreHelper {
      *    or <code>null</code> if this location should be automatically detected.
      * @return a new library classpath entry
      */
-    IClasspathEntry newLibraryEntry(IPath path, IPath sourceAttachmentPath, IPath sourceAttachmentRootPath);
+    IClasspathEntry newLibraryEntry(IPath path, IPath sourceAttachmentPath, IPath sourceAttachmentRootPath, boolean isTestJar);
     
     /**
      * Creates and returns a new classpath entry of kind <code>CPE_CONTAINER</code>
