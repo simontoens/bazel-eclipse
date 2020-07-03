@@ -20,7 +20,7 @@
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
  *
@@ -38,7 +38,7 @@ import java.util.List;
 
 /**
  * Parses Bazel output.
- * 
+ *
  * @author stoens
  * @since the real summer of 2019
  */
@@ -60,7 +60,7 @@ public class BazelOutputParser {
                     this.moreDetailsLine = null;
                 }
             }
-            
+
             else if (isInitialErrorSourcePathLine(line)) {
                 if (this.errorSourcePathLine == null) {
                     this.errorSourcePathLine = line;
@@ -91,16 +91,16 @@ public class BazelOutputParser {
                 this.parsingErrors = true;
             }
         }
-        
+
         if (this.moreDetailsLine != null) {
             allBazelMarkerDetails.add(buildErrorDetails(this.errorSourcePathLine, this.moreDetailsLine));
             this.errorSourcePathLine = null;
             this.moreDetailsLine = null;
         }
-        
+
         return allBazelMarkerDetails;
     }
-    
+
     public List<BazelProblem> getErrorBazelMarkerDetails(List<String> lines) {
         this.parsingErrors = false;
         this.errorSourcePathLine = null;
@@ -139,12 +139,12 @@ public class BazelOutputParser {
             }
         } catch (Exception anyE) {
             // BUILD file update error TODO
-            // errorSourcePathLine: ERROR: /Users/plaird/dev/sfdc-bazel/projects/libs/scone/scone-starter-jetty/scone-starter-jetty-impl/BUILD:81:1: Target '//projects/libs/scone/scone-starter-jetty/scone-starter-jetty-impl:src/main/java/com/salesforce/sconems/jetty/HttpTraceDisabler.java' contains an error and its package is in error and referenced by '//projects/libs/scone/scone-starter-jetty/scone-starter-jetty-impl:scone-starter-jetty-impl' 
+            // errorSourcePathLine: ERROR: /Users/plaird/dev/sfdc-bazel/projects/libs/scone/scone-starter-jetty/scone-starter-jetty-impl/BUILD:81:1: Target '//projects/libs/scone/scone-starter-jetty/scone-starter-jetty-impl:src/main/java/com/salesforce/sconems/jetty/HttpTraceDisabler.java' contains an error and its package is in error and referenced by '//projects/libs/scone/scone-starter-jetty/scone-starter-jetty-impl:scone-starter-jetty-impl'
             // moreDetailsLine: null
             System.err.println("Failed to parse line: "+errorSourcePathLine+" with details: "+moreDetailsLine);
             description = "BUILD file error";
         }
-        return new BazelProblem(sourcePath, lineNumber, description);
+        return BazelProblem.createError(sourcePath, lineNumber, description);
     }
 
     private boolean isInitialErrorSourcePathLine(String line) {

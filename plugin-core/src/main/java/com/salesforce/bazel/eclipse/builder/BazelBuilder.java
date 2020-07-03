@@ -53,6 +53,7 @@ import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 
 import com.google.common.collect.Lists;
@@ -86,6 +87,13 @@ public class BazelBuilder extends IncrementalProjectBuilder {
 
     private static final LogHelper LOG = LogHelper.log(BazelBuilder.class);
 
+    private final JDTWarningPublisher warningPublisher;
+
+    public BazelBuilder() {
+        this.warningPublisher = new JDTWarningPublisher();
+        JavaCore.addElementChangedListener(this.warningPublisher);
+    }
+
     @Override
     protected IProject[] build(int kind, Map<String, String> args, IProgressMonitor monitor) throws CoreException {
         WorkProgressMonitor progressMonitor = new EclipseWorkProgressMonitor(monitor);
@@ -113,13 +121,13 @@ public class BazelBuilder extends IncrementalProjectBuilder {
                         .collect(onlyElement()).getProject();
                 Set<IProject> downstreamProjects = getDownstreamProjectsOf(project, allImportedProjects);
                 buildProjects(bazelWorkspaceCmdRunner, downstreamProjects, progressMonitor, rootWorkspaceProject, monitor);
-                
-                refreshProjectClasspath(project, progressMonitor, monitor, bazelWorkspaceCmdRunner);
+
+                //refreshProjectClasspath(project, progressMonitor, monitor, bazelWorkspaceCmdRunner);
             }
         } catch (BazelCommandLineToolConfigurationException e) {
-            LOG.error("Bazel not found: {} ", e.getMessage());
+            LOG.error("Bazel not found", e);
         } catch (Exception e) {
-            LOG.error("Failed to build {}", e, project.getName());
+            LOG.error("Failed to build", e);
         } finally {
             progressMonitor.done();
         }
@@ -127,28 +135,28 @@ public class BazelBuilder extends IncrementalProjectBuilder {
     }
 
     void refreshProjectClasspath(IProject project, WorkProgressMonitor progressMonitor, IProgressMonitor monitor,
-            BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner) 
+            BazelWorkspaceCommandRunner bazelWorkspaceCmdRunner)
                     throws Exception{
         String pname = project.getName();
         String packageLabel = BazelProjectPreferences.getBazelLabelForEclipseProject(project);
         System.out.println("Refreshing the classpath for project ["+pname+"] for package ["+packageLabel+"]");
-        
+
         // Force update of classpath container and the aspect cache
         BazelClasspathContainer.clean();
-        
+
         // Clean the aspect cache, and reload
         Set<String> flushedTargets = bazelWorkspaceCmdRunner.flushAspectInfoCacheForPackage(packageLabel);
         bazelWorkspaceCmdRunner.getAspectPackageInfos(project.getName(), flushedTargets, progressMonitor, "refreshProjectClasspath");
-        
+
         // Clean the query cache and reload
         bazelWorkspaceCmdRunner.flushQueryCache(packageLabel);
         bazelWorkspaceCmdRunner.queryBazelTargetsInBuildFile(progressMonitor, packageLabel);
-        
+
         // refresh the project immediately to reload classpath
         project.refreshLocal(IResource.DEPTH_ONE, monitor);
         // Force refresh of GUI
         project.touch(monitor);
-        
+
         // If a BUILD file added a reference from this project to another project in the Eclipse workspace, it is likely
         // the project ref update failed because the resource tree was locked. Retry any queued project updates now.
         // This operation is a no-op if no deferred updates are necessary
@@ -180,7 +188,7 @@ public class BazelBuilder extends IncrementalProjectBuilder {
             throws IOException, InterruptedException, BazelCommandLineToolConfigurationException
     {
         Set<String> bazelTargets = new TreeSet<>();
-        
+
         // figure out the list of targets to build
         for (IProject project : projects) {
             EclipseProjectBazelTargets activatedTargets = BazelProjectPreferences.getConfiguredBazelTargets(project, false);
@@ -194,10 +202,16 @@ public class BazelBuilder extends IncrementalProjectBuilder {
             // Get a map of targets to projects to build BazelErrorStreamObserver
             Map<BazelLabel, IProject> labelToProject = BazelProjectPreferences.getBazelLabelToEclipseProjectMap(projects);
             BazelErrorStreamObserver errorStreamObserver = new BazelErrorStreamObserver(monitor, labelToProject, rootProject);
-            // Start error observer and clear Problems View
             errorStreamObserver.startObserver();
+
             // now run the actual build
             List<BazelProblem> errors = cmdRunner.runBazelBuild(bazelTargets, progressMonitor, bazelBuildFlags, null, errorStreamObserver);
+
+            // publish JDT detected warnings here - we do this here for consistency
+            // so that warnings for the projects being built are published at the
+            // same time as build errors
+            warningPublisher.publish(projects, monitor);
+
             return errors.isEmpty();
         }
     }

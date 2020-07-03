@@ -20,7 +20,7 @@
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Copyright 2016 The Bazel Authors. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
@@ -46,7 +46,7 @@ import org.eclipse.core.runtime.CoreException;
 public class BazelNature implements IProjectNature {
     public static final String BAZEL_NATURE_ID = "com.salesforce.bazel.eclipse.bazelNature"; //$NON-NLS-1$
     private IProject project;
-    
+
     @Override
     public void configure() throws CoreException {
         // TODO we aren't doing anything right now for BazelNature configure hook, seems like it should be used for something
